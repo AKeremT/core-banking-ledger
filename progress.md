@@ -26,12 +26,25 @@
   - İlk commit atıldı: `chore: initialize core banking ledger spring boot project with flyway and testcontainers`.
 - [x] **GitHub Remote Reposunun Bağlanması:**
   - `origin` (`https://github.com/AKeremT/core-banking-ledger.git`) eklendi ve `main` branch'i GitHub'a başarıyla push edildi.
+- [x] **Veritabanı Altyapısı ve Konfigürasyon:**
+  - `docker-compose.yml` ile PostgreSQL 16 servisi kuruldu (named volume ile kalıcılık sağlandı).
+  - `application.properties` yapılandırıldı (PostgreSQL connection, hibernate ddl-auto, sql formatlama).
+- [x] **Domain Modellemesi ve Entity Tasarımı (Sektör Standardı):**
+  - Enum sınıfları oluşturuldu (`Currency`, `AccountType`, `AccountStatus`, `TransactionType`, `TransactionStatus`, `EntryType`).
+  - Çift taraflı muhasebe (Double-Entry) entity'leri kodlandı (`Customer`, `Account`, `Transaction`, `LedgerEntry`).
+  - **Uygulanan Best Practice'ler:**
+    - Optimistic Locking için `@Version` eklendi.
+    - Kimlik numaraları için `String` tipi ve `unique` constraint'ler tanımlandı.
+    - `@CreationTimestamp` ve `@UpdateTimestamp` ile otomatik UTC zaman yönetimi (`Instant`) kuruldu.
+    - `@Builder.Default` ile koleksiyon başlatmaları yapılarak `NullPointerException` riski sıfırlandı.
+    - Finansal değişmezlik için `LedgerEntry` kolonlarına `updatable = false` kısıtları uygulandı.
 
 ---
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] PostgreSQL için `docker-compose.yml` dosyasının hazırlanması.
-- [ ] `application.yml` konfigürasyonunun yapılması (PostgreSQL bağlantısı ve Flyway ayarları).
-- [ ] Temiz paket mimarisinin (Package structure) oluşturulması.
-- [ ] Temel Enum ve Entity sınıflarının kodlanması (`Customer`, `Account`, `Transaction`, `LedgerEntry`, `IdempotencyRecord`).
+- [ ] Repository katmanının oluşturulması (`CustomerRepository`, `AccountRepository`, `TransactionRepository`, `LedgerEntryRepository`).
+- [ ] Pessimistic Locking (`@Lock(LockModeType.PESSIMISTIC_WRITE)`) sorgularının tasarlanması.
+- [ ] Deadlock önleyici sıralı kilit (Lock Ordering) ve Idempotency kontrol iş mantığının Servis katmanında kurulması.
+- [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
+- [ ] Concurrency ve Double-Entry testlerinin yazılması.
