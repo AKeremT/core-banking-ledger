@@ -24,12 +24,13 @@
 - [x] **Git Reposunun Başlatılması ve İlk Commit:**
   - `git init -b main` çalıştırıldı.
   - İlk commit atıldı: `chore: initialize core banking ledger spring boot project with flyway and testcontainers`.
+- [x] **GitHub Remote Reposunun Bağlanması:**
+  - `origin` (`https://github.com/AKeremT/core-banking-ledger.git`) eklendi ve `main` branch'i GitHub'a başarıyla push edildi.
 
 ---
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] GitHub remote reposunun bağlanması (`git remote add origin ...`) ve `push` edilmesi.
 - [ ] PostgreSQL için `docker-compose.yml` dosyasının hazırlanması.
 - [ ] `application.yml` konfigürasyonunun yapılması (PostgreSQL bağlantısı ve Flyway ayarları).
 - [ ] Temiz paket mimarisinin (Package structure) oluşturulması.
