@@ -19,13 +19,17 @@
   - Case Study şartnamesi (`core_banking_case_study_specification.md`) oluşturuldu.
   - Double-Entry Bookkeeping mantığı ($\sum DEBIT = \sum CREDIT$), Deadlock önleyici sıralı kilit mekanizması (Lock Ordering), Idempotency mimarisi ve Stream API gereksinimleri netleştirildi.
 - [x] **Proje İskeletinin Kurulması:**
-  - `start.spring.io` üzerinden Maven projesi (`banking-v1`) oluşturuldu ve çalışma dizinine yerleştirildi.
+  - `start.spring.io` üzerinden Maven projesi oluşturuldu.
+  - Klasör adı ve artifact ID sektör standardına uygun olarak `core-banking-ledger` olarak güncellendi.
+- [x] **Git Reposunun Başlatılması ve İlk Commit:**
+  - `git init -b main` çalıştırıldı.
+  - İlk commit atıldı: `chore: initialize core banking ledger spring boot project with flyway and testcontainers`.
 
 ---
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] Git reposunun başlatılması (`git init`) ve ilk commit (`chore: project initialization`).
+- [ ] GitHub remote reposunun bağlanması (`git remote add origin ...`) ve `push` edilmesi.
 - [ ] PostgreSQL için `docker-compose.yml` dosyasının hazırlanması.
 - [ ] `application.yml` konfigürasyonunun yapılması (PostgreSQL bağlantısı ve Flyway ayarları).
 - [ ] Temiz paket mimarisinin (Package structure) oluşturulması.
