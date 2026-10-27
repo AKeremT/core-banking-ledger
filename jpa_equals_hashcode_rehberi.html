@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JPA & Hibernate: Equals & HashCode Rehberi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1c2128;
+            --border-color: #30363d;
+            --primary: #58a6ff;
+            --primary-glow: rgba(88, 166, 255, 0.15);
+            --success: #3fb950;
+            --success-glow: rgba(63, 185, 80, 0.15);
+            --danger: #f85149;
+            --danger-glow: rgba(248, 81, 73, 0.15);
+            --warning: #d29922;
+            --warning-glow: rgba(210, 153, 34, 0.15);
+            --purple: #bc8cff;
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.65;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 20px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        p.lead {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 28px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+
+        .card-title .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        /* Hikaye Bölümü */
+        .story-box {
+            background: linear-gradient(180deg, rgba(88, 166, 255, 0.05) 0%, rgba(22, 27, 34, 0.8) 100%);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 12px 12px 0;
+            padding: 20px 24px;
+            margin: 20px 0;
+        }
+
+        .story-step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #000;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .step-content strong {
+            color: #fff;
+        }
+
+        /* Görsel Posta Kutuları (Buckets) */
+        .bucket-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 25px 0;
+        }
+
+        .bucket-box {
+            background: #11141a;
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            position: relative;
+        }
+
+        .bucket-box.active {
+            border-color: var(--primary);
+            background: rgba(88, 166, 255, 0.05);
+        }
+
+        .bucket-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .bucket-tag {
+            background: var(--primary-glow);
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+        }
+
+        .item-pill {
+            background: #21262d;
+            border: 1px solid #30363d;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .item-pill.match {
+            border-color: var(--success);
+            background: var(--success-glow);
+            color: var(--success);
+        }
+
+        /* Kod Bloğu Stili */
+        .code-container {
+            background: #090d13;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 10px 16px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        .keyword { color: #ff7b72; font-weight: 600; }
+        .type { color: #79c0ff; }
+        .method { color: #d2a8ff; }
+        .string { color: #a5d6ff; }
+        .comment { color: #8b949e; font-style: italic; }
+        .annotation { color: #ffa657; }
+
+        /* Karşılaştırma Tablosu */
+        .table-responsive {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        th {
+            background: #1f242c;
+            color: #fff;
+            padding: 14px 16px;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: #c9d1d9;
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-badge.danger {
+            background: var(--danger-glow);
+            color: var(--danger);
+            border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+
+        .status-badge.warning {
+            background: var(--warning-glow);
+            color: var(--warning);
+            border: 1px solid rgba(210, 153, 34, 0.4);
+        }
+
+        .status-badge.success {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(63, 185, 80, 0.4);
+        }
+
+        /* Çağrı ve İpuçları */
+        .alert-box {
+            display: flex;
+            gap: 16px;
+            padding: 18px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 0.95rem;
+        }
+
+        .alert-box.info {
+            background: var(--primary-glow);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            color: #c8e1ff;
+        }
+
+        .alert-box.warning {
+            background: var(--warning-glow);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+            color: #f7e0a3;
+        }
+
+        .alert-box .alert-icon {
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <span class="badge">Core Banking Ledger Architecture</span>
+        <h1>JPA'de Equals & HashCode Rehberi</h1>
+        <p class="lead">Neden standart Java mantığı Hibernate ve veritabanı dünyasında patlar? Hikayeler, görsel kutular ve satır satır kod analiziyle derinlemesine kavrayın.</p>
+    </header>
+
+    <!-- HİKAYE BÖLÜMÜ -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">📖</span>
+            Büyükelçilik & Posta Kutuları Hikayesi (Mental Model)
+        </div>
+        <p>Büyük bir bankanın genel müdürlüğünde çalışan bir arşiv memuru olduğunuzu hayal edin:</p>
+        
+        <div class="story-box">
+            <div class="story-step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <strong>Arşivdeki 1000 Tane Posta Kutusu (HashSet Bucket Mantığı):</strong>
+                    Müdürlükte duvar boyunca 0'dan 999'a kadar numaralandırılmış 1000 adet kilitli posta kutusu var. Bir müşterinin yeni açılan hesap evrakını arşive koyacaksınız.
+                </div>
+            </div>
+
+            <div class="story-step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <strong><code>hashCode()</code> — Posta Kutusunun Numarasını Belirler:</strong>
+                    Evrakın üzerindeki bilgiyi bir matematiksel fonksiyona (hash) sokarsınız. Çıkan numara diyelim ki <strong>"74"</strong> oldu. Evrakı doğrudan 74 numaralı kutuya atarsınız.
+                </div>
+            </div>
+
+            <div class="story-step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <strong>Hızlı Arama (O(1) Karmaşıklığı):</strong>
+                    Müşteri gelip <em>"Benim hesabım sizde kayıtlı mı?"</em> dediğinde, 1000 kutunun hepsini tek tek gezmezsiniz! Hesabın yine hash numarasını hesaplarsınız (74). Doğrudan 74 numaralı kutuyu açarsınız.
+                </div>
+            </div>
+
+            <div class="story-step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                    <strong><code>equals()</code> — Kutunun İçindeki Doğru Evrakı Seçer:</strong>
+                    74 numaralı kutuda belki 3-4 farklı müşterinin hesabı birikmiştir. Kutunun kapağını açıp tek tek IBAN'larına bakarsınız. IBAN'ı tam uyuşan dosyayı alıp müşteriye verirsiniz.
+                </div>
+            </div>
+        </div>
+
+        <div class="alert-box warning">
+            <span class="alert-icon">⚠️</span>
+            <div>
+                <strong>Büyük Facia (Kayıp Hesap Vakası):</strong>
+                Eğer evrak kutunun içine girdikten sonra üzerindeki numara değişirse ne olur? 
+                Evrak <strong>74</strong> numaralı kutudadır; ama yeni numara <strong>185</strong> çıkmaktadır. Müşteri sorduğunda memur 185 numaralı kutuyu açar, kutu boştur! Evrak arşivde olmasına rağmen sistem <em>"Kayıt bulunamadı!"</em> diyerek sonsuza kadar veriyi kaybeder.
+            </div>
+        </div>
+    </div>
+
+    <!-- GÖRSEL POSTA KUTULARI (HASH BUCKET) GÖRSELİ -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🗄️</span>
+            Görsel Model: Bellekte HashSet Arama Simülasyonu
+        </div>
+        <p>Aşağıda Java <code>HashSet&lt;Account&gt;</code> koleksiyonunun arkasındaki kutu (Bucket) mantığını görebilirsiniz:</p>
+
+        <div class="bucket-grid">
+            <div class="bucket-box">
+                <div class="bucket-header">
+                    <span>Kutu #12</span>
+                    <span class="bucket-tag">Boş</span>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.8rem; padding: 20px 0;">(Eleman Yok)</div>
+            </div>
+
+            <div class="bucket-box active">
+                <div class="bucket-header">
+                    <span>Kutu #42 (Account.class)</span>
+                    <span class="bucket-tag">Hesaplar Burada</span>
+                </div>
+                <div class="item-pill">
+                    <span>TR99...1001</span>
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">Account</span>
+                </div>
+                <div class="item-pill match">
+                    <span>TR55...8842 ⭐</span>
+                    <span style="font-size: 0.7rem;">Eşleşti!</span>
+                </div>
+                <div class="item-pill">
+                    <span>TR11...2003</span>
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">Account</span>
+                </div>
+            </div>
+
+            <div class="bucket-box">
+                <div class="bucket-header">
+                    <span>Kutu #89</span>
+                    <span class="bucket-tag">Boş</span>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.8rem; padding: 20px 0;">(Eleman Yok)</div>
+            </div>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+            Tüm <code>Account</code> nesneleri sabit <code>getClass().hashCode()</code> ile tek bir güvenli kutuya (Kutu #42) gider. Kutunun içinde IBAN'lar <code>equals()</code> ile kontrol edilir.
+        </p>
+    </div>
+
+    <!-- YÖNTEMLERİN KARŞILAŞTIRILMASI TABLOSU -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">⚖️</span>
+            Equals & HashCode Stratejileri Karşılaştırması
+        </div>
+        <p>Neden JPA dünyasında geleneksel yöntemler çalışmaz? Aşağıdaki tablo tüm tuzakları özetlemektedir:</p>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Strateji</th>
+                        <th>Nasıl Çalışır?</th>
+                        <th>JPA'deki Tehlikesi</th>
+                        <th>Sonuç</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Varsayılan Java</strong><br><code>Object.equals()</code></td>
+                        <td>Bellekteki RAM adresini kıyaslar (<code>this == o</code>).</td>
+                        <td>Veritabanından aynı hesabı 2 kez çekersen RAM adresleri farklı olduğu için <code>Set</code> içinde aynı hesaptan 2 tane oluşur!</td>
+                        <td><span class="status-badge danger">Kullanılamaz</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lombok</strong><br><code>@Data</code> veya <code>@EqualsAndHashCode</code></td>
+                        <td>Sınıftaki bütün alanları (customer, entries, balance...) dahil eder.</td>
+                        <td>
+                            1. <code>customer &harr; account</code> arasında <strong>StackOverflowError</strong> çöker.<br>
+                            2. Tembel yüklenen (Lazy) tabloları arkada habersizce tetikler (N+1 Sorgusu).
+                        </td>
+                        <td><span class="status-badge danger">Felaket</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sadece Veritabanı ID</strong><br><code>id.equals(that.id)</code></td>
+                        <td>Otomatik artan birincil anahtara (PK) bakar.</td>
+                        <td>
+                            <code>new Account()</code> dediğinde <code>id = null</code>'dır. Veritabanına kaydedildiğinde <code>id = 1</code> olur. <strong>HashSet içindeyken nesnenin Hash'i değiştiği için nesne Set içinde kaybolur!</strong>
+                        </td>
+                        <td><span class="status-badge warning">Tuzak</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Business Key (Bizim Kodumuz)</strong><br><code>accountNumber</code> + <code>getClass().hashCode()</code></td>
+                        <td>Gerçek dünyadaki benzersiz iş anahtarına (IBAN) ve sabit sınıf hash'ine bakar.</td>
+                        <td>
+                            1. IBAN doğduğu andan itibaren tektir ve sabittir.<br>
+                            2. <code>getClass().hashCode()</code> asla değişmez; nesne Set içinde ömür boyu kaybolmaz.
+                        </td>
+                        <td><span class="status-badge success">En İyi Pratik</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- KOD ANALİZİ BÖLÜMÜ -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">💻</span>
+            Account.java İçindeki Kodun Satır Satır Analizi
+        </div>
+
+        <div class="code-container">
+            <div class="code-header">
+                <span>Account.java &mdash; equals() & hashCode()</span>
+                <span>Java 21</span>
+            </div>
+            <pre><code><span class="annotation">@Override</span>
+<span class="keyword">public boolean</span> <span class="method">equals</span>(<span class="type">Object</span> o) {
+    <span class="comment">// 1. ADIM: İki değişken RAM'de zaten aynı adrese mi bakıyor?</span>
+    <span class="keyword">if</span> (<span class="keyword">this</span> == o) <span class="keyword">return true</span>;
+
+    <span class="comment">// 2. ADIM: Karşıdaki nesne null mı veya Account değil mi?</span>
+    <span class="comment">// (Java 16+ Pattern Matching: 'that' değişkenine otomatik cast edilir)</span>
+    <span class="keyword">if</span> (!(o <span class="keyword">instanceof</span> <span class="type">Account</span> that)) <span class="keyword">return false</span>;
+
+    <span class="comment">// 3. ADIM: Gerçek Dünyadaki IBAN (accountNumber) eşitliği kontrolü</span>
+    <span class="comment">// that.getAccountNumber() kullanıyoruz çünkü Hibernate Proxy nesnesi olabilir!</span>
+    <span class="keyword">return</span> accountNumber != <span class="keyword">null</span> && accountNumber.<span class="method">equals</span>(that.<span class="method">getAccountNumber</span>());
+}
+
+<span class="annotation">@Override</span>
+<span class="keyword">public int</span> <span class="method">hashCode</span>() {
+    <span class="comment">// 4. ADIM: Hibernate gurusu Vlad Mihalcea standardı:</span>
+    <span class="comment">// Nesne DB'ye gitmeden önce de, sonra da hash kodu ASLA DEĞİŞMEZ!</span>
+    <span class="keyword">return</span> <span class="method">getClass</span>().<span class="method">hashCode</span>();
+}</code></pre>
+        </div>
+
+        <div class="alert-box info">
+            <span class="alert-icon">💡</span>
+            <div>
+                <strong>Altın Kural (Getter Kullanımı):</strong> <code>that.accountNumber</code> yazmak yerine <code>that.getAccountNumber()</code> yazdık. Çünkü Hibernate bazen nesneyi tam yüklemez, yerine bir "Vekil" (Proxy) koyar. Getter çağırdığımızda vekil uyanır ve gerçek IBAN'ı getirir. Doğrudan alana erişseydik <code>null</code> gelebilirdi!
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Core Banking Ledger Projesi &bull; Teknik Eğitim Dokümanı &bull; Ekim 2026
+    </footer>
+
+</div>
+
+</body>
+</html>

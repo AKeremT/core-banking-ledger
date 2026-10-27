@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Katmanı & Pessimistic Locking Rehberi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1c2128;
+            --border-color: #30363d;
+            --primary: #58a6ff;
+            --primary-glow: rgba(88, 166, 255, 0.15);
+            --success: #3fb950;
+            --success-glow: rgba(63, 185, 80, 0.15);
+            --danger: #f85149;
+            --danger-glow: rgba(248, 81, 73, 0.15);
+            --warning: #d29922;
+            --warning-glow: rgba(210, 153, 34, 0.15);
+            --purple: #bc8cff;
+            --purple-glow: rgba(188, 140, 255, 0.15);
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.65;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 20px;
+            background: var(--purple-glow);
+            color: var(--purple);
+            border: 1px solid rgba(188, 140, 255, 0.3);
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, var(--purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        p.lead {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 28px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+
+        .card-title .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        /* Hikaye Kutuları */
+        .story-box {
+            background: linear-gradient(180deg, rgba(88, 166, 255, 0.04) 0%, rgba(22, 27, 34, 0.9) 100%);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 12px 12px 0;
+            padding: 22px;
+            margin: 20px 0;
+        }
+
+        .story-box.danger-border {
+            border-left-color: var(--danger);
+            background: linear-gradient(180deg, rgba(248, 81, 73, 0.05) 0%, rgba(22, 27, 34, 0.9) 100%);
+        }
+
+        .story-box.success-border {
+            border-left-color: var(--success);
+            background: linear-gradient(180deg, rgba(63, 185, 80, 0.05) 0%, rgba(22, 27, 34, 0.9) 100%);
+        }
+
+        .story-step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .story-step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #000;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        .step-num.danger { background: var(--danger); color: #fff; }
+        .step-num.success { background: var(--success); color: #000; }
+
+        /* Karşılaştırmalı Kartlar */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .scenario-box {
+            background: #11141a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .scenario-box.bad {
+            border-top: 4px solid var(--danger);
+        }
+
+        .scenario-box.good {
+            border-top: 4px solid var(--success);
+        }
+
+        .scenario-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Kod Bloğu Stili */
+        .code-container {
+            background: #090d13;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 18px 0;
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 10px 16px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        .keyword { color: #ff7b72; font-weight: 600; }
+        .type { color: #79c0ff; }
+        .method { color: #d2a8ff; }
+        .string { color: #a5d6ff; }
+        .comment { color: #8b949e; font-style: italic; }
+        .annotation { color: #ffa657; }
+
+        /* Tablolar */
+        .table-responsive {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        th {
+            background: #1f242c;
+            color: #fff;
+            padding: 14px 16px;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: #c9d1d9;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Uyarı Kutusu */
+        .callout {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            border-radius: 10px;
+            background: var(--warning-glow);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+            color: #f7e0a3;
+            font-size: 0.92rem;
+            margin: 20px 0;
+        }
+
+        .callout .callout-icon {
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <span class="badge">Core Banking Ledger &bull; Veri Erişim Katmanı</span>
+        <h1>Repository Katmanı ve Concurrency Kilidi Rehberi</h1>
+        <p class="lead">Bugün tamamladığımız 4 repository sınıfını, bankacılığın en kritik konusu olan <strong>Pessimistic Locking</strong> mekanizmasını ve tarihsel ekstre sorgularını keşfedin.</p>
+    </header>
+
+    <!-- 1. GENEL BAKIŞ TABLOSU -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🏛️</span>
+            1. Yazdığın 4 Repository ve Görevleri
+        </div>
+        <p>Spring Data JPA altyapısını kullanarak veritabanı erişimini soyutladığımız 4 ana arayüz:</p>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Repository</th>
+                        <th>Varlık & ID</th>
+                        <th>Kritik Metotlar</th>
+                        <th>Mühendislik Amacı</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>CustomerRepository</strong></td>
+                        <td><code>Customer</code> (Long)</td>
+                        <td><code>findByIdentityNumber</code><br><code>findByEmail</code></td>
+                        <td>TCKN ve E-posta üzerinden tekil müşteri sorguları ve mükerrer kayıt kontrolleri.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AccountRepository</strong></td>
+                        <td><code>Account</code> (Long)</td>
+                        <td><code>findByIdWithLock</code><br><code>findByAccountNumberWithLock</code></td>
+                        <td>Para transferi sırasında aynı hesaba aynı anda işlem yapılmasını engelleyen <strong>Pessimistic Kilit</strong> omurgası.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>TransactionRepository</strong></td>
+                        <td><code>Transaction</code> (UUID)</td>
+                        <td><code>findByIdempotencyKey</code><br><code>existsByIdempotencyKey</code></td>
+                        <td>Ağ kopmalarında aynı transferin iki kez çekilmesini önleyen <strong>Idempotency</strong> denetimi.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LedgerEntryRepository</strong></td>
+                        <td><code>LedgerEntry</code> (Long)</td>
+                        <td><code>findByAccountIdAndDateRange</code><br><code>findByTransactionId</code></td>
+                        <td>Hesap ekstreleri ve çift taraflı defter kayıtlarının ($\sum DEBIT = \sum CREDIT$) doğrulanması.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. KİLİT MEKANİZMASI & HİKAYE -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🔒</span>
+            2. `AccountRepository` ve Pessimistic Lock Mekanizması
+        </div>
+        
+        <p>Repository'ye yazdığın şu metodu hatırlayalım:</p>
+        <div class="code-container">
+            <div class="code-header">
+                <span>AccountRepository.java &mdash; Kilitli Okuma</span>
+                <span>SQL: SELECT ... FOR UPDATE</span>
+            </div>
+            <pre><code><span class="annotation">@Lock</span>(LockModeType.PESSIMISTIC_WRITE)
+<span class="annotation">@Query</span>(<span class="string">"SELECT a FROM Account a WHERE a.id = :id"</span>)
+<span class="type">Optional</span>&lt;<span class="type">Account</span>&gt; <span class="method">findByIdWithLock</span>(<span class="annotation">@Param</span>(<span class="string">"id"</span>) <span class="type">Long</span> id);</code></pre>
+        </div>
+
+        <p><strong>Bu kod veritabanında ne yapar?</strong><br>
+        Normal bir sorgu `SELECT * FROM accounts WHERE id = 1` şeklinde çalışırken, `@Lock(LockModeType.PESSIMISTIC_WRITE)` eklendiğinde PostgreSQL şu komutu çalıştırır:</p>
+        
+        <div class="code-container">
+            <pre><code><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> accounts <span class="keyword">WHERE</span> id = 1 <span class="keyword">FOR UPDATE</span>;</code></pre>
+        </div>
+
+        <p>Bu, veritabanına şunu söyler: <em>"Bu satırı ben işlemimi bitirip COMMIT veya ROLLBACK diyene kadar <strong>KİLİTLE</strong>! Başka hiçbir transaction bu satırı değiştiremez veya kilitli okuyamaz, kuyrukta beklesin!"</em></p>
+
+        <!-- GERÇEK HAYAT HİKAYESİ: ALİ & AYŞE -->
+        <div class="story-box danger-border">
+            <h3 style="color: #ff7b72; margin-bottom: 12px;">📖 Gerçek Hayat Hikayesi: Ortak Hesap ve Çift Harcama (Double Spending) Felaketi</h3>
+            <p><strong>Ali</strong> ve <strong>Ayşe</strong> evlidir ve bankada <strong>ortak tek bir vadesiz hesapları</strong> vardır. Hesapta toplam <strong>1.000 TL</strong> bakiye bulunmaktadır.</p>
+            
+            <div class="grid-2">
+                <div class="scenario-box bad">
+                    <div class="scenario-title" style="color: var(--danger);">
+                        ❌ Kilitsiz Sistem (Banka Batıran Senaryo)
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+                        Saat tam 14:00:00.000'da Ali Kadıköy ATM'sinden, Ayşe ise Beşiktaş ATM'sinden aynı anda <strong>1.000 TL Çek</strong> butonuna basar.
+                    </p>
+                    <ol style="font-size: 0.85rem; padding-left: 18px; line-height: 1.6;">
+                        <li><strong>Kadıköy ATM:</strong> Bakiyeyi okur &rarr; 1.000 TL var.</li>
+                        <li><strong>Beşiktaş ATM:</strong> Bakiyeyi okur &rarr; 1.000 TL var.</li>
+                        <li>Kadıköy ATM parayı verir (1.000 TL). Bakiyeyi 0 yapar.</li>
+                        <li>Beşiktaş ATM de parayı verir (1.000 TL). Bakiyeyi 0 yapar.</li>
+                    </ol>
+                    <p style="margin-top: 10px; font-weight: 700; color: var(--danger); font-size: 0.85rem;">
+                        💥 Sonuç: 1.000 TL parayla iki ATM'den toplam 2.000 TL çekildi! Banka 1.000 TL zararda!
+                    </p>
+                </div>
+
+                <div class="scenario-box good">
+                    <div class="scenario-title" style="color: var(--success);">
+                        ✅ Pessimistic Lock İle (Bizim Kodumuz)
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+                        Saat 14:00:00.000'da ikisi de butona basar:
+                    </p>
+                    <ol style="font-size: 0.85rem; padding-left: 18px; line-height: 1.6;">
+                        <li><strong>Ali'nin İşlemi:</strong> <code>findByIdWithLock(1)</code> çağırır. Veritabanı satırı Ali için kilitler (<code>FOR UPDATE</code>).</li>
+                        <li><strong>Ayşe'nin İşlemi:</strong> Satıra ulaşmak ister; ama veritabanı <em>"Dur! Satır kilitli, Ali'nin işlemi bitene kadar bekle"</em> der.</li>
+                        <li>Ali parayı çeker, bakiye 0.00 TL olur ve transaction biter (Kilit kalkar).</li>
+                        <li>Sırası gelen Ayşe'nin işlemi içeri girer; bakiyenin 0.00 TL olduğunu görür ve <strong>"Yetersiz Bakiye"</strong> hatası döner.</li>
+                    </ol>
+                    <p style="margin-top: 10px; font-weight: 700; color: var(--success); font-size: 0.85rem;">
+                        🛡️ Sonuç: Tek kuruş bile kaybolmadı!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEADLOCK HİKAYESİ -->
+        <div class="story-box">
+            <h3 style="color: var(--primary); margin-bottom: 10px;">🔄 Deadlock (Ölümcül Kilitlenme) ve "Lock Ordering" Sırrı</h3>
+            <p style="font-size: 0.95rem;">
+                Peki ya <strong>Ahmet</strong> ile <strong>Mehmet</strong> aynı saniyede birbirlerine para gönderirse ne olur?
+            </p>
+            <ul style="font-size: 0.9rem; padding-left: 20px; margin: 10px 0; line-height: 1.7;">
+                <li>Ahmet &rarr; Mehmet'e 100 TL atarken önce <strong>Ahmet'in hesabını kilitler</strong>, sonra Mehmet'in hesabını kilitlemeye gider.</li>
+                <li>Tam o anda Mehmet &rarr; Ahmet'e 100 TL atarken önce <strong>Mehmet'in hesabını kilitler</strong>, sonra Ahmet'in hesabını kilitlemeye gider.</li>
+                <li><strong>DEADLOCK:</strong> İki işlem de birbirinin elindeki kilidi bırakmasını bekler ve veritabanı kilitlenir!</li>
+            </ul>
+
+            <div class="callout">
+                <span class="callout-icon">💡</span>
+                <div>
+                    <strong>Bizim Çözümümüz (Lock Ordering):</strong><br>
+                    Servis katmanında hesapları kilitlerken gönderen veya alana göre değil; <strong>hesapların ID değerine göre (küçük ID önce)</strong> kilitleyeceğiz. İkisi de önce ID'si küçük olan hesabı kilitlemek için sıraya gireceğinden Deadlock matematiksel olarak <strong>imkansız</strong> hale gelecektir! İşte `findByIdWithLock(Long id)` metodunu bu yüzden yazdın!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. DATE RANGE SORGUSU -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">📅</span>
+            3. `LedgerEntryRepository` ve `DateRange` Ekstre Sorgusu
+        </div>
+
+        <p>Yazdığın tarih aralığı filtreleme metodu:</p>
+        <div class="code-container">
+            <div class="code-header">
+                <span>LedgerEntryRepository.java &mdash; Tarih Aralığı Sorgusu</span>
+                <span>JPQL BETWEEN</span>
+            </div>
+            <pre><code><span class="annotation">@Query</span>(<span class="string">"SELECT le FROM LedgerEntry le WHERE le.account.id = :accountId "</span> +
+       <span class="string">"AND le.createdAt BETWEEN :startDate AND :endDate ORDER BY le.createdAt DESC"</span>)
+<span class="type">List</span>&lt;<span class="type">LedgerEntry</span>&gt; <span class="method">findByAccountIdAndDateRange</span>(
+        <span class="annotation">@Param</span>(<span class="string">"accountId"</span>) <span class="type">Long</span> accountId,
+        <span class="annotation">@Param</span>(<span class="string">"startDate"</span>) <span class="type">Instant</span> startDate,
+        <span class="annotation">@Param</span>(<span class="string">"endDate"</span>) <span class="type">Instant</span> endDate
+);</code></pre>
+        </div>
+
+        <h4 style="color: #fff; margin: 15px 0 8px 0;">Bu Metodun Önemi ve Stream API Köprüsü:</h4>
+        <ol style="font-size: 0.92rem; padding-left: 20px; line-height: 1.8; color: #c9d1d9;">
+            <li><strong>Zaman Dilimi Bağımsızlığı (UTC - <code>Instant</code>):</strong> Tarihleri `Instant` ile tuttuğumuz için dünyanın hangi ülkesinden sorgu atılırsa atılsın saat kayması veya yaz saati farkı yaşanmaz.</li>
+            <li><strong>Performanslı İndeks Kullanımı:</strong> PostgreSQL'de `createdAt` kolonu indekslendiğinde `BETWEEN` sorguları milyonlarca satır arasından milisaniyede döner.</li>
+            <li><strong>Java Stream API ile Finansal Analitik:</strong> Bir sonraki aşamada bu metottan gelen hareketleri Java Stream API ile boru hattına sokacağız:
+                <ul style="padding-left: 20px; margin-top: 6px; color: var(--text-muted);">
+                    <li><code>.filter(e -> e.getEntryType() == EntryType.DEBIT)</code> &rarr; Ay boyunca yapılan toplam harcamayı bulma.</li>
+                    <li><code>.map(LedgerEntry::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add)</code> &rarr; Toplam nakit giriş/çıkış ekstresini hesaplama.</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <!-- 4. GÜNÜN ÖZETİ VE GELECEK -->
+    <div class="card" style="border-left: 4px solid var(--purple);">
+        <div class="card-title">
+            <span class="icon" style="background: var(--purple-glow); color: var(--purple);">🚀</span>
+            Bugünün Özeti ve Bir Sonraki Seans
+        </div>
+        <p>Bugün harika bir çalışma temposuyla şunları başardın:</p>
+        <ul style="font-size: 0.95rem; padding-left: 22px; line-height: 1.8; margin-bottom: 16px;">
+            <li>✅ `Account` ve `Customer` entity'lerindeki kritik mantık hataları ve audit kolonları düzeltildi.</li>
+            <li>✅ Hibernate Proxy ve HashSet çökmesini engelleyen <strong>Business Key equals/hashCode</strong> yapısı kuruldu.</li>
+            <li>✅ 4 adet Spring Data JPA repository arayüzü <strong>senin tarafından başarıyla kodlandı</strong> ve sıfır hatayla derlendi.</li>
+            <li>✅ Concurrency kilidi (`Pessimistic Locking`) ve Idempotency altyapısı hazırlandı.</li>
+        </ul>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+            Bir sonraki buluşmamızda: <strong>İstisna Sınıfları (Exceptions)</strong> ve <strong>DTO'lar</strong> ile başlayıp ardından doğrudan bu kilitleri yöneteceğimiz <strong>TransferService</strong> motoruna geçeceğiz. İyi dinlenmeler!
+        </p>
+    </div>
+
+    <footer>
+        Core Banking Ledger Projesi &bull; Geliştirici Çalışma Günlüğü &bull; 27 Ekim 2026
+    </footer>
+
+</div>
+
+</body>
+</html>

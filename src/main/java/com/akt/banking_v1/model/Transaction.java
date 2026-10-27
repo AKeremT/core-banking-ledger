@@ -1,11 +1,13 @@
 package com.akt.banking_v1.model;
 
+import com.akt.banking_v1.enums.Currency;
 import com.akt.banking_v1.enums.TransactionStatus;
 import com.akt.banking_v1.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,13 +30,23 @@ public class Transaction {
     private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private TransactionType type;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TransactionStatus status;
+
     private String description;
 
+    @Column(precision = 19, scale = 4, nullable = false, updatable = false)
+    private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    private Currency currency;
+
+    @Column(nullable = false, updatable = false)
     @CreationTimestamp
     private Instant createdAt;
 

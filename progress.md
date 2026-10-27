@@ -4,6 +4,12 @@
 **Odak:** Double-Entry Bookkeeping, Race Condition & Locking, Idempotency, Clean Architecture  
 **Başlangıç Tarihi:** 26 Ekim 2026  
 
+> [!IMPORTANT]
+> **ÖĞRENME VE ÇALIŞMA METODOLOJİSİ (MENTORLUK KURALI - ASLA UNUTULMAYACAK):**
+> 1. **Kod Yazarı:** Kodları **daima kullanıcı (öğrenci)** yazar.
+> 2. **Mentor Rolü:** Yapay zeka öğretmendir; gereksinimleri, sektör standartlarını ve mantığı anlatır, yönergeleri verir ve kullanıcının yazmasını bekler. Doğrudan kod yazıp dosyaya basmaz!
+> 3. **İnceleme & Geri Bildirim:** Kullanıcı kodlamayı bitirdiğinde mentor kodları inceler, eksik/hata analizi yapar, Big-O ve best-practice denetiminden geçirir.
+
 ---
 
 ## 📌 Şu Ana Kadar Tamamlananlar
@@ -38,13 +44,17 @@
     - `@CreationTimestamp` ve `@UpdateTimestamp` ile otomatik UTC zaman yönetimi (`Instant`) kuruldu.
     - `@Builder.Default` ile koleksiyon başlatmaları yapılarak `NullPointerException` riski sıfırlandı.
     - Finansal değişmezlik için `LedgerEntry` kolonlarına `updatable = false` kısıtları uygulandı.
+- [x] **Repository Katmanı ve Concurrency Sorguları (Öğrenci Tarafından Tamamlandı):**
+  - `CustomerRepository`: Kimlik no (TCKN/VKN) ve e-posta tekillik sorguları.
+  - `AccountRepository`: Concurrency ve Deadlock-free Lock Ordering için `@Lock(LockModeType.PESSIMISTIC_WRITE)` ile `findByIdWithLock` ve `findByAccountNumberWithLock`.
+  - `TransactionRepository`: Idempotency denetimleri için `findByIdempotencyKey` ve `existsByIdempotencyKey`.
+  - `LedgerEntryRepository`: Hesap hareketleri (`findByAccountIdOrderByCreatedAtDesc`), tarih aralıklı ekstre sorguları (`findByAccountIdAndDateRange`) ve işlem bazlı çift kayıt filtreleme (`findByTransactionId`).
 
 ---
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] Repository katmanının oluşturulması (`CustomerRepository`, `AccountRepository`, `TransactionRepository`, `LedgerEntryRepository`).
-- [ ] Pessimistic Locking (`@Lock(LockModeType.PESSIMISTIC_WRITE)`) sorgularının tasarlanması.
-- [ ] Deadlock önleyici sıralı kilit (Lock Ordering) ve Idempotency kontrol iş mantığının Servis katmanında kurulması.
+- [ ] Transfer & İşlem DTO'ları ve Özel İstisna (Exception) sınıflarının tanımlanması.
+- [ ] Deadlock önleyici sıralı kilit (Lock Ordering) ve Idempotency kontrol iş mantığının Servis katmanında (`TransferService`, `AccountService`) kurulması.
 - [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
-- [ ] Concurrency ve Double-Entry testlerinin yazılması.
+- [ ] Concurrency ve Double-Entry testlerinin (Testcontainers ile) yazılması.

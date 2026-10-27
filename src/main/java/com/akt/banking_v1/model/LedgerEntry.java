@@ -35,6 +35,8 @@ public class LedgerEntry {
 
     @Column(precision = 19, scale = 4, updatable = false, nullable = false)
     private BigDecimal amount;
+
+    @Column(nullable = false, updatable = false)
     @CreationTimestamp
     private Instant createdAt;
 }

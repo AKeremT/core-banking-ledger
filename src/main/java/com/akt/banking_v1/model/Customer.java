@@ -33,8 +33,10 @@ public class Customer {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false, updatable = false)
     @CreationTimestamp
     private Instant createdAt;
+    @Column(nullable = false)
     @UpdateTimestamp
     private Instant updatedAt;
 
