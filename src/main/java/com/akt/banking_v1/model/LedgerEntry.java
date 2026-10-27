@@ -33,7 +33,7 @@ public class LedgerEntry {
     @Column(updatable = false, nullable = false)
     private EntryType entryType;
 
-    @Column(precision = 19, scale = 4, updatable = false, nullable = false)
+    @Column(precision = 19, scale = 4, updatable = false, nullable = false, check = @CheckConstraint(constraint = "amount > 0"))
     private BigDecimal amount;
 
     @Column(nullable = false, updatable = false)

@@ -37,7 +37,7 @@ public class Account {
     @Column(nullable = false, updatable = false)
     private Currency currency;
 
-    @Column(precision = 19, scale = 4, nullable = false)
+    @Column(precision = 19, scale = 4, nullable = false, check = @CheckConstraint(constraint = "balance >= 0"))
     @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
 

@@ -39,7 +39,7 @@ public class Transaction {
 
     private String description;
 
-    @Column(precision = 19, scale = 4, nullable = false, updatable = false)
+    @Column(precision = 19, scale = 4, nullable = false, updatable = false, check = @CheckConstraint(constraint = "amount > 0"))
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
