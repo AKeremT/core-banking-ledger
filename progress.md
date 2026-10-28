@@ -52,12 +52,22 @@
   - `AccountRepository`: Concurrency ve Deadlock-free Lock Ordering için `@Lock(LockModeType.PESSIMISTIC_WRITE)` ile `findByIdWithLock` ve `findByAccountNumberWithLock`.
   - `TransactionRepository`: Idempotency denetimleri için `findByIdempotencyKey` ve `existsByIdempotencyKey`.
   - `LedgerEntryRepository`: Hesap hareketleri (`findByAccountIdOrderByCreatedAtDesc`), tarih aralıklı ekstre sorguları (`findByAccountIdAndDateRange`) ve işlem bazlı çift kayıt filtreleme (`findByTransactionId`).
+- [x] **Transfer DTO'ları ve Özel İstisna (Exception) Hiyerarşisi (Öğrenci Tarafından Tamamlandı):**
+  - Domain istisna hiyerarşisi (`BankingException`, `InsufficientBalanceException`, `AccountNotFoundException`, `AccountInactiveException`, `CurrencyMismatchException`, `SelfTransferException`).
+  - Jakarta Bean Validation zırhlı `TransferRequest` ve `TransferResponse` record DTO'ları.
+  - Sektör standardı `referenceNumber` takibi (`Transaction` entity, DTO ve repository metodları).
+- [x] **Transfer Motoru ve Çift Taraflı Muhasebe Servisi (Öğrenci Tarafından Tamamlandı):**
+  - `TransferMapper`: `@Component` olarak Stream API ile `DEBIT` ve `CREDIT` satırlarını filtreleyen izole mapper bileşeni.
+  - `TransferService`:
+    - Mükerrer isteklere karşı **Idempotency** koruması (`findByIdempotencyKey`).
+    - Karşılıklı kilitlenmeyi önleyen **Deadlock-Free Lock Ordering** (Doğal alfabetik kilit sırası).
+    - Bakiye, para birimi ve hesap statü kontrolleri.
+    - Atomik **Double-Entry Bookkeeping** ($\sum DEBIT = \sum CREDIT$) ve `referenceNumber` üretimi.
 
 ---
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] Transfer & İşlem DTO'ları ve Özel İstisna (Exception) sınıflarının tanımlanması.
-- [ ] Deadlock önleyici sıralı kilit (Lock Ordering) ve Idempotency kontrol iş mantığının Servis katmanında (`TransferService`, `AccountService`) kurulması.
+- [ ] Hesap açılışı ve bakiye yönetimi için `AccountService` katmanının geliştirilmesi.
 - [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
-- [ ] Concurrency ve Double-Entry testlerinin (Testcontainers ile) yazılması.
+- [ ] Concurrency, Deadlock ve Double-Entry testlerinin (Testcontainers ile) yazılması.
