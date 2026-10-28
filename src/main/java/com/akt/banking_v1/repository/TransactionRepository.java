@@ -12,4 +12,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     Optional<Transaction> findByIdempotencyKey(String idempotencyKey);
     boolean existsByIdempotencyKey(String idempotencyKey);
+
+    Optional<Transaction> findByReferenceNumber(String referenceNumber);
+    boolean existsByReferenceNumber(String referenceNumber);
 }

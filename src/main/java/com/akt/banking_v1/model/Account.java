@@ -28,7 +28,7 @@ public class Account {
     private Long id;
 
     @Column(nullable = false, unique = true, updatable = false)
-    private String accountNumber;
+    private String accountNumber; // IBAN
 
     @Version
     private Long version;
