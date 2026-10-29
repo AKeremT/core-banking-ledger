@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransferService: Core Banking Transfer Motoru & Uçtan Uca Akış Rehberi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1c2128;
+            --border-color: #30363d;
+            --primary: #58a6ff;
+            --primary-glow: rgba(88, 166, 255, 0.15);
+            --success: #3fb950;
+            --success-glow: rgba(63, 185, 80, 0.15);
+            --danger: #f85149;
+            --danger-glow: rgba(248, 81, 73, 0.15);
+            --warning: #d29922;
+            --warning-glow: rgba(210, 153, 34, 0.15);
+            --purple: #bc8cff;
+            --purple-glow: rgba(188, 140, 255, 0.15);
+            --cyan: #39c5cf;
+            --cyan-glow: rgba(57, 197, 207, 0.15);
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 35px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .badge-purple {
+            background: var(--purple-glow);
+            color: var(--purple);
+            border: 1px solid rgba(188, 140, 255, 0.3);
+        }
+
+        .badge-blue {
+            background: var(--primary-glow);
+            color: var(--primary);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+
+        .badge-green {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .badge-cyan {
+            background: var(--cyan-glow);
+            color: var(--cyan);
+            border: 1px solid rgba(57, 197, 207, 0.3);
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, var(--primary) 50%, var(--purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+        }
+
+        p.lead {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        /* Section Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 32px;
+            margin-bottom: 36px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+
+        .card-title {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+            padding-bottom: 12px;
+        }
+
+        .card-title .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        /* Visual Gate Workflow Pipeline */
+        .pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin: 25px 0;
+        }
+
+        .pipeline-step {
+            background: rgba(13, 17, 23, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 18px 14px;
+            position: relative;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .pipeline-step:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+        }
+
+        .step-num {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            border-radius: 50%;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .step-blue .step-num { background: var(--primary-glow); color: var(--primary); border: 1px solid var(--primary); }
+        .step-purple .step-num { background: var(--purple-glow); color: var(--purple); border: 1px solid var(--purple); }
+        .step-cyan .step-num { background: var(--cyan-glow); color: var(--cyan); border: 1px solid var(--cyan); }
+        .step-green .step-num { background: var(--success-glow); color: var(--success); border: 1px solid var(--success); }
+        .step-warning .step-num { background: var(--warning-glow); color: var(--warning); border: 1px solid var(--warning); }
+
+        .step-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .step-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Code Block Styling */
+        .code-container {
+            position: relative;
+            background: #090d13;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            font-family: var(--font-mono);
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #121720;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .code-lang {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            color: #d1d7e0;
+        }
+
+        /* Syntax simulation */
+        .kw { color: #ff7b72; font-weight: 600; } /* keywords */
+        .ann { color: #d2a8ff; font-weight: 500; } /* annotations */
+        .cls { color: #ffa657; font-weight: 600; } /* classes */
+        .fn { color: #79c0ff; } /* functions */
+        .str { color: #a5d6ff; } /* strings */
+        .com { color: #8b949e; font-style: italic; } /* comments */
+        .num { color: #79c0ff; } /* numbers */
+
+        /* Anatomy Step Card */
+        .anatomy-item {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px dashed rgba(48, 54, 61, 0.8);
+        }
+
+        .anatomy-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .anatomy-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .anatomy-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            font-family: var(--font-mono);
+        }
+
+        .tag-red { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(248, 81, 73, 0.4); }
+        .tag-blue { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(88, 166, 255, 0.4); }
+        .tag-purple { background: var(--purple-glow); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.4); }
+        .tag-green { background: var(--success-glow); color: var(--success); border: 1px solid rgba(63, 185, 80, 0.4); }
+        .tag-yellow { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(210, 153, 34, 0.4); }
+
+        .anatomy-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .dual-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        @media (max-width: 860px) {
+            .dual-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col-box {
+            background: rgba(13, 17, 23, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .col-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .title-code { color: var(--cyan); }
+        .title-mech { color: var(--warning); }
+
+        .col-box p {
+            font-size: 0.9rem;
+            color: #c9d1d9;
+            margin-bottom: 10px;
+        }
+
+        .col-box ul {
+            padding-left: 20px;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        .col-box li {
+            margin-bottom: 6px;
+        }
+
+        .col-box code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            background: rgba(110, 118, 129, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #f0f6fc;
+        }
+
+        /* Callout Boxes */
+        .callout {
+            border-left: 4px solid;
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+            font-size: 0.92rem;
+        }
+
+        .callout-info {
+            background: var(--primary-glow);
+            border-color: var(--primary);
+            color: #c9d1d9;
+        }
+
+        .callout-warning {
+            background: var(--warning-glow);
+            border-color: var(--warning);
+            color: #c9d1d9;
+        }
+
+        .callout-danger {
+            background: var(--danger-glow);
+            border-color: var(--danger);
+            color: #c9d1d9;
+        }
+
+        .callout-success {
+            background: var(--success-glow);
+            border-color: var(--success);
+            color: #c9d1d9;
+        }
+
+        .callout strong {
+            color: #ffffff;
+        }
+
+        /* Deadlock Diagram */
+        .deadlock-visual {
+            background: #090d13;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+
+        .deadlock-grid {
+            display: grid;
+            grid-template-columns: 1fr 80px 1fr;
+            align-items: center;
+            text-align: center;
+            gap: 15px;
+        }
+
+        .thread-box {
+            background: #161b22;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .thread-name {
+            font-weight: 700;
+            color: var(--purple);
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .thread-action {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .vs-circle {
+            width: 44px;
+            height: 44px;
+            line-height: 44px;
+            border-radius: 50%;
+            background: var(--danger-glow);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            font-weight: 800;
+            margin: 0 auto;
+        }
+
+        /* State Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            margin: 20px 0;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 14px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: #090d13;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: rgba(22, 27, 34, 0.4);
+        }
+
+        .val-badge {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .val-red { background: var(--danger-glow); color: var(--danger); }
+        .val-green { background: var(--success-glow); color: var(--success); }
+        .val-blue { background: var(--primary-glow); color: var(--primary); }
+
+        /* Q&A Accordion Style */
+        .qa-card {
+            background: rgba(13, 17, 23, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+        }
+
+        .qa-q {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qa-a {
+            font-size: 0.92rem;
+            color: #c9d1d9;
+            line-height: 1.6;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Header -->
+    <header>
+        <div class="badge-container">
+            <span class="badge badge-purple">Core Banking Engine</span>
+            <span class="badge badge-blue">Double-Entry Bookkeeping</span>
+            <span class="badge badge-cyan">Deadlock-Free Lock Ordering</span>
+            <span class="badge badge-green">Zero-Side-Effects Idempotency</span>
+        </div>
+        <h1>TransferService Derinlemesine Çalışma Rehberi</h1>
+        <p class="lead">
+            Para transferi sıradan bir CRUD işlemi değildir. Ağ gecikmelerine, eşzamanlı veri yarışlarına (Race Condition) 
+            ve çift harcamalara (Double Spending) karşı inşa ettiğimiz <strong>5 Güvenlik Kapısı</strong> ve defter mekanizması.
+        </p>
+    </header>
+
+    <!-- Büyük Resim: 5 Güvenlik Kapısı Pipeline -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🧭</span>
+            <span>Büyük Resim: Transfer Akışının 5 Güvenlik Kapısı (Pipeline)</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            İstemciden (Mobil Uygulama / API) gelen bir transfer talebi veritabanına ulaşmadan önce sırayla şu 5 istasyondan geçer:
+        </p>
+
+        <div class="pipeline-grid">
+            <div class="pipeline-step step-blue">
+                <span class="step-num">1</span>
+                <div class="step-title">İkiz İstek Zırhı</div>
+                <div class="step-desc">Idempotency Key kontrolü. Aynı anahtarla daha önce işlem yapıldıysa aynısını dön, paraya dokunma!</div>
+            </div>
+            <div class="pipeline-step step-purple">
+                <span class="step-num">2</span>
+                <div class="step-title">Deadlock Koruması</div>
+                <div class="step-desc">Hesap numaraları alfabetik sıralanır (Natural Order). Küçük hesap önce kilitlenir. Kilitlenme imkansızlaşır.</div>
+            </div>
+            <div class="pipeline-step step-cyan">
+                <span class="step-num">3</span>
+                <div class="step-title">Domain Kuralları</div>
+                <div class="step-desc">Hesaplar ACTIVE mi? Para birimleri (Currency) eşit mi? Gönderenin bakiyesi yeterli mi?</div>
+            </div>
+            <div class="pipeline-step step-warning">
+                <span class="step-num">4</span>
+                <div class="step-title">Bakiye Değişimi</div>
+                <div class="step-desc">Gönderenin bakiyesi düşer (-), alıcının bakiyesi artar (+). Hibernate Dirty Checking bellekte hazırlar.</div>
+            </div>
+            <div class="pipeline-step step-green">
+                <span class="step-num">5</span>
+                <div class="step-title">Çift Taraflı Defter</div>
+                <div class="step-desc">1 Transaction + 2 LedgerEntry (1 DEBIT, 1 CREDIT). Atomik olarak kaydedilir. &Sigma;Borç = &Sigma;Alacak.</div>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            <strong>Altın İlke:</strong> Bu 5 kapıdan herhangi birinde hata alınırsa Spring'in <code>@Transactional(rollbackFor = Exception.class)</code> 
+            yöneticisi araya girer; bellekteki bakiye değişimleri, açılan kilitler ve defter satırları sıfır kalıntı bırakarak veritabanından tamamen geri alınır (Rollback).
+        </div>
+    </div>
+
+    <!-- Kod ve Cerrahi Analiz -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">🔬</span>
+            <span>`transfer(...)` Metodunun Cerrahi ve Satır Satır Analizi</span>
+        </div>
+
+        <!-- 1. KAPI -->
+        <div class="anatomy-item">
+            <div class="anatomy-header">
+                <span class="anatomy-tag tag-blue">Kapı 1</span>
+                <span class="anatomy-name">Idempotency (Ağ Tekrarlarına Karşı Zırh)</span>
+            </div>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>TransferService.java</span>
+                    <span class="code-lang">Java 21</span>
+                </div>
+                <pre><code><span class="cls">Optional</span>&lt;<span class="cls">Transaction</span>&gt; existingTx = transactionRepository.<span class="fn">findByIdempotencyKey</span>(idempotencyKey);
+<span class="kw">if</span> (existingTx.<span class="fn">isPresent</span>())
+    <span class="kw">return</span> transferMapper.<span class="fn">toResponse</span>(existingTx.<span class="fn">get</span>());</code></pre>
+            </div>
+            <div class="dual-columns">
+                <div class="col-box">
+                    <div class="col-title title-code">💻 Kod Ne Yapıyor?</div>
+                    <p>İstemcinin (Mobil uygulama) HTTP Header ile gönderdiği benzersiz UUID anahtarını veritabanında arar.</p>
+                    <p>Eğer bu anahtarla daha önce tamamlanmış bir işlem varsa, hiçbir hesabı kilitlemeden ve hiçbir bakiye değiştirmeden eski cevabı döner.</p>
+                </div>
+                <div class="col-box">
+                    <div class="col-title title-mech">⚙️ Mekanizma ve Gerçek Hayat Senaryosu</div>
+                    <p><strong>Neden Şart?</strong> Kullanıcı metroda transfer butonuna bastı. Para düştü ama tam o anda baz istasyonu koptu. İstemci "Timeout" aldı ve 1 saniye sonra isteği tekrar attı.</p>
+                    <ul>
+                        <li>Idempotency olmasa: Kullanıcıdan 2 kez para kesilir (Felaket!).</li>
+                        <li>Idempotency sayesinde: Sistem ilk işlemi tanır, sıfır yan etkiyle (Zero Side-Effects) ilk işlemin dekontunu anında döner.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. KAPI: Kendi Kendine Transfer & Kilit Sıralaması -->
+        <div class="anatomy-item">
+            <div class="anatomy-header">
+                <span class="anatomy-tag tag-purple">Kapı 2</span>
+                <span class="anatomy-name">Self-Transfer Kontrolü & Deadlock-Free Lock Ordering</span>
+            </div>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>TransferService.java</span>
+                    <span class="code-lang">Java 21</span>
+                </div>
+                <pre><code><span class="kw">if</span> (request.<span class="fn">senderAccountNumber</span>().<span class="fn">equals</span>(request.<span class="fn">receiverAccountNumber</span>()))
+    <span class="kw">throw new</span> <span class="cls">SelfTransferException</span>(<span class="str">"Sender and receiver accounts are the same!"</span>);
+
+<span class="kw">boolean</span> isSenderFirst = request.<span class="fn">senderAccountNumber</span>().<span class="fn">compareTo</span>(request.<span class="fn">receiverAccountNumber</span>()) &lt; <span class="num">0</span>;
+
+<span class="cls">String</span> firstAccountNumber = isSenderFirst ? request.<span class="fn">senderAccountNumber</span>() : request.<span class="fn">receiverAccountNumber</span>();
+<span class="cls">String</span> secondAccountNumber = isSenderFirst ? request.<span class="fn">receiverAccountNumber</span>() : request.<span class="fn">senderAccountNumber</span>();
+
+<span class="cls">Account</span> firstAccount = accountRepository.<span class="fn">findByAccountNumberWithLock</span>(firstAccountNumber)
+        .<span class="fn">orElseThrow</span>(() -&gt; <span class="kw">new</span> <span class="cls">AccountNotFoundException</span>(<span class="str">"Account not found: "</span> + firstAccountNumber));
+
+<span class="cls">Account</span> secondAccount = accountRepository.<span class="fn">findByAccountNumberWithLock</span>(secondAccountNumber)
+        .<span class="fn">orElseThrow</span>(() -&gt; <span class="kw">new</span> <span class="cls">AccountNotFoundException</span>(<span class="str">"Account not found: "</span> + secondAccountNumber));
+
+<span class="cls">Account</span> sender = isSenderFirst ? firstAccount : secondAccount;
+<span class="cls">Account</span> receiver = isSenderFirst ? secondAccount : firstAccount;</code></pre>
+            </div>
+            <div class="dual-columns">
+                <div class="col-box">
+                    <div class="col-title title-code">💻 Kod Ne Yapıyor?</div>
+                    <ul>
+                        <li>Gönderen ile alıcı aynıysa anında <code>SelfTransferException</code> fırlatır.</li>
+                        <li><code>compareTo</code> metodu ile hesap numaralarını alfabetik olarak kıyaslar (Örn: <code>"TR100" &lt; "TR200"</code>).</li>
+                        <li>Kimin gönderen kimin alan olduğuna bakılmaksızın <strong>daima alfabetik olarak küçük olan hesap önce kilitlenir</strong>, büyük olan sonra kilitlenir.</li>
+                        <li>Kilitler alındıktan sonra <code>sender</code> ve <code>receiver</code> değişkenleri asıl rollerine göre atanır.</li>
+                    </ul>
+                </div>
+                <div class="col-box">
+                    <div class="col-title title-mech">⚙️ Deadlock Nasıl Çözüldü? (Coffman Kuralları)</div>
+                    <div class="deadlock-visual">
+                        <div class="deadlock-grid">
+                            <div class="thread-box">
+                                <div class="thread-name">Thread 1: A &rarr; B Transferi</div>
+                                <div class="thread-action">1. Hesap A'yı kilitledi</div>
+                                <div class="thread-action" style="color: var(--danger);">2. Hesap B'yi bekliyor...</div>
+                            </div>
+                            <div class="vs-circle">VS</div>
+                            <div class="thread-box">
+                                <div class="thread-name">Thread 2: B &rarr; A Transferi</div>
+                                <div class="thread-action">1. Hesap B'yi kilitledi</div>
+                                <div class="thread-action" style="color: var(--danger);">2. Hesap A'yı bekliyor...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p>Eğer gönderen sırasıyla kilitleseydik yukarıdaki gibi <strong>Deadlock</strong> oluşur ve PostgreSQL işlemi iptal ederdi!</p>
+                    <p><strong>Bizim Çözümümüz (Natural Ordering):</strong> İki thread de alfabetik sıraladığı için (A &lt; B), ikisi de önce A'yı kilitlemeye çalışır. Thread 1 A'yı aldığında, Thread 2 B'yi kapamaz; efendice A'nın kilidinin bırakılmasını kuyrukta bekler. Kilitlenme %100 önlenir!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. KAPI: Validasyonlar -->
+        <div class="anatomy-item">
+            <div class="anatomy-header">
+                <span class="anatomy-tag tag-cyan">Kapı 3</span>
+                <span class="anatomy-name">Hesap Statüsü, Döviz Türü ve Bakiye Kontrolleri</span>
+            </div>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>TransferService.java</span>
+                    <span class="code-lang">Java 21</span>
+                </div>
+                <pre><code><span class="kw">if</span> (sender.<span class="fn">getStatus</span>() != <span class="cls">AccountStatus</span>.ACTIVE || receiver.<span class="fn">getStatus</span>() != <span class="cls">AccountStatus</span>.ACTIVE)
+    <span class="kw">throw new</span> <span class="cls">AccountInactiveException</span>(<span class="str">"Inactive accounts!"</span>);
+
+<span class="kw">if</span> (sender.<span class="fn">getCurrency</span>() != receiver.<span class="fn">getCurrency</span>())
+    <span class="kw">throw new</span> <span class="cls">CurrencyMismatchException</span>(<span class="str">"Currency mismatch!"</span>);
+
+<span class="kw">if</span> (sender.<span class="fn">getBalance</span>().<span class="fn">compareTo</span>(request.<span class="fn">amount</span>()) &lt; <span class="num">0</span>)
+    <span class="kw">throw new</span> <span class="cls">InsufficientBalanceException</span>(<span class="str">"Insufficient balance!"</span>);</code></pre>
+            </div>
+            <div class="dual-columns">
+                <div class="col-box">
+                    <div class="col-title title-code">💻 Kod Ne Yapıyor?</div>
+                    <ul>
+                        <li>Gönderen veya alan hesaptan herhangi biri <code>SUSPENDED</code> veya <code>CLOSED</code> ise işlemi durdurur.</li>
+                        <li>Hesapların para birimlerinin aynı olduğunu doğrular (Örn: TRY &rarr; USD transferini engeller).</li>
+                        <li><code>BigDecimal.compareTo</code> ile gönderenin bakiyesinin transfer tutarından büyük veya eşit olduğunu denetler.</li>
+                    </ul>
+                </div>
+                <div class="col-box">
+                    <div class="col-title title-mech">⚙️ Neden `compareTo`? Neden `equals` Değil?</div>
+                    <p><code>BigDecimal</code>'da <code>new BigDecimal("10.0")</code> ile <code>new BigDecimal("10.00")</code> değerleri matematiksel olarak aynıdır ancak <code>equals()</code> çağrıldığında scale (ondalık hane) farkından ötürü <code>false</code> döner!</p>
+                    <p>Sayısal büyüklük karşılaştırmasında <strong>daima <code>compareTo</code> kullanılmalıdır</strong>:</p>
+                    <ul>
+                        <li><code>a.compareTo(b) &lt; 0</code> &rarr; a küçüktür b</li>
+                        <li><code>a.compareTo(b) == 0</code> &rarr; a eşittir b</li>
+                        <li><code>a.compareTo(b) &gt; 0</code> &rarr; a büyüktür b</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. KAPI: Bakiye Güncelleme & Hibernate Dirty Checking -->
+        <div class="anatomy-item">
+            <div class="anatomy-header">
+                <span class="anatomy-tag tag-yellow">Kapı 4</span>
+                <span class="anatomy-name">Bellek Seviyesinde Bakiye Güncellemesi (In-Memory Mutation)</span>
+            </div>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>TransferService.java</span>
+                    <span class="code-lang">Java 21</span>
+                </div>
+                <pre><code>sender.<span class="fn">setBalance</span>(sender.<span class="fn">getBalance</span>().<span class="fn">subtract</span>(request.<span class="fn">amount</span>()));
+receiver.<span class="fn">setBalance</span>(receiver.<span class="fn">getBalance</span>().<span class="fn">add</span>(request.<span class="fn">amount</span>()));</code></pre>
+            </div>
+            <div class="dual-columns">
+                <div class="col-box">
+                    <div class="col-title title-code">💻 Neden `accountRepository.save(sender)` Yazmadık?</div>
+                    <p>Çok kritik bir JPA sorusu: Burada <code>accountRepository.save()</code> çağırmadık, peki veritabanı nasıl güncelleniyor?</p>
+                    <p>Cevap: <strong>Hibernate Automatic Dirty Checking!</strong></p>
+                    <p>Transaction içinde <code>findByAccountNumberWithLock</code> ile çektiğimiz entity'ler Hibernate'in <em>Persistence Context</em>'inde (Yönetilen Nesne Havuzu) yer alır. Metot biterken Hibernate nesnelerin değiştiğini otomatik fark eder ve veritabanına kendisi <code>UPDATE accounts SET balance = ...</code> sorgularını basar.</p>
+                </div>
+                <div class="col-box">
+                    <div class="col-title title-mech">⚙️ Veritabanı CHECK Constraint Güvencesi</div>
+                    <p>Java seviyesinde <code>balance.compareTo(amount) &gt;= 0</code> kontrolü yaptık. Peki ya kodda bir bug olursa?</p>
+                    <p>Biz daha önce [`Account.java`](file:///C:/Users/AKT/Desktop/backend/core-banking-ledger/src/main/java/com/akt/banking_v1/model/Account.java) entity'sine veritabanı seviyesinde şu kuralı koymuştuk:</p>
+                    <code>@CheckConstraint(constraint = "balance &gt;= 0")</code>
+                    <p>Eğer bakiye -0.01 bile olsa PostgreSQL işlemi anında iptal eder (Defense-in-Depth / Çift Katmanlı Koruma).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. KAPI: Çift Taraflı Defter ve Atomik Kayıt -->
+        <div class="anatomy-item">
+            <div class="anatomy-header">
+                <span class="anatomy-tag tag-green">Kapı 5</span>
+                <span class="anatomy-name">Çift Taraflı Muhasebe (Double-Entry Bookkeeping) & Dekont</span>
+            </div>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>TransferService.java</span>
+                    <span class="code-lang">Java 21</span>
+                </div>
+                <pre><code><span class="cls">String</span> referenceNumber = <span class="str">"TXN-"</span>
+        + <span class="cls">LocalDate</span>.<span class="fn">now</span>().<span class="fn">format</span>(<span class="cls">DateTimeFormatter</span>.BASIC_ISO_DATE)
+        + <span class="str">"-"</span>
+        + <span class="cls">UUID</span>.<span class="fn">randomUUID</span>().<span class="fn">toString</span>().<span class="fn">substring</span>(<span class="num">0</span>, <span class="num">8</span>).<span class="fn">toUpperCase</span>();
+
+<span class="cls">Transaction</span> transaction = <span class="cls">Transaction</span>.<span class="fn">builder</span>()
+        .<span class="fn">idempotencyKey</span>(idempotencyKey)
+        .<span class="fn">referenceNumber</span>(referenceNumber)
+        .<span class="fn">type</span>(<span class="cls">TransactionType</span>.INTERNAL_TRANSFER)
+        .<span class="fn">status</span>(<span class="cls">TransactionStatus</span>.COMPLETED)
+        .<span class="fn">amount</span>(request.<span class="fn">amount</span>())
+        .<span class="fn">currency</span>(sender.<span class="fn">getCurrency</span>())
+        .<span class="fn">description</span>(request.<span class="fn">description</span>())
+        .<span class="fn">build</span>();
+
+<span class="cls">LedgerEntry</span> debitEntry = <span class="cls">LedgerEntry</span>.<span class="fn">builder</span>()
+        .<span class="fn">account</span>(sender)          <span class="com">// Gönderen hesaba</span>
+        .<span class="fn">entryType</span>(<span class="cls">EntryType</span>.DEBIT) <span class="com">// BORÇ (DEBIT)</span>
+        .<span class="fn">amount</span>(request.<span class="fn">amount</span>())
+        .<span class="fn">transaction</span>(transaction)
+        .<span class="fn">build</span>();
+
+<span class="cls">LedgerEntry</span> creditEntry = <span class="cls">LedgerEntry</span>.<span class="fn">builder</span>()
+        .<span class="fn">account</span>(receiver)        <span class="com">// Alıcı hesaba</span>
+        .<span class="fn">entryType</span>(<span class="cls">EntryType</span>.CREDIT) <span class="com">// ALACAK (CREDIT)</span>
+        .<span class="fn">amount</span>(request.<span class="fn">amount</span>())
+        .<span class="fn">transaction</span>(transaction)
+        .<span class="fn">build</span>();
+
+transaction.<span class="fn">getLedgerEntries</span>().<span class="fn">add</span>(debitEntry);
+transaction.<span class="fn">getLedgerEntries</span>().<span class="fn">add</span>(creditEntry);
+
+<span class="cls">Transaction</span> savedTransaction = transactionRepository.<span class="fn">save</span>(transaction);
+<span class="kw">return</span> transferMapper.<span class="fn">toResponse</span>(savedTransaction);</code></pre>
+            </div>
+            <div class="dual-columns">
+                <div class="col-box">
+                    <div class="col-title title-code">💻 Kod Ne Yapıyor?</div>
+                    <ul>
+                        <li>Bankacılık dekont takibi için standart bir <code>referenceNumber</code> üretir (Örn: <code>TXN-20261029-A7C89F12</code>).</li>
+                        <li>1 adet ana <code>Transaction</code> kaydı oluşturur.</li>
+                        <li>Bu transfere bağlı <strong>2 adet defter satırı</strong> üretir:
+                            <ul>
+                                <li>Gönderen hesaba <code>DEBIT</code> (Borç)</li>
+                                <li>Alıcı hesaba <code>CREDIT</code> (Alacak)</li>
+                            </ul>
+                        </li>
+                        <li><code>transaction.getLedgerEntries().add(...)</code> ile ilişkilendirir.</li>
+                        <li><code>transactionRepository.save(transaction)</code> dediğimizde <code>CascadeType.ALL</code> sayesinde defter kayıtları da otomatik kaydedilir.</li>
+                    </ul>
+                </div>
+                <div class="col-box">
+                    <div class="col-title title-mech">⚙️ Neden Defter Satırları (LedgerEntry) Vardır?</div>
+                    <p>Sadece <code>balance</code> alanını güncelleseydik banka müfettişleri denetime geldiğinde:</p>
+                    <p><em>"Bu hesaptan 500 TL çıkmış ama paranın nereye gittiğine dair hiçbir hukuki ispatınız yok!"</em> derdi.</p>
+                    <p><strong>Değişmez Defter İlkesi (Immutability):</strong></p>
+                    <ul>
+                        <li>Defter kayıtları silinemez ve güncellenemez (<code>updatable = false</code>).</li>
+                        <li>Her transferin borç ve alacak toplamı birbirine eşittir: <code>&Sigma; DEBIT == &Sigma; CREDIT</code>.</li>
+                        <li>Yıllar sonra bile her kuruşun nereden nereye aktığı matematiksel olarak ispatlanabilir.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÖZEL BÖLÜM: KÜTÜPHANECİ & DIRTY CHECKING ANALOJİSİ -->
+    <div class="card" style="border: 2px solid rgba(88, 166, 255, 0.5); background: linear-gradient(180deg, #161b22 0%, #0e131b 100%);">
+        <div class="card-title">
+            <span class="icon" style="background: var(--purple-glow); color: var(--purple);">🧠</span>
+            <span>Özel Bölüm: Neden `accountRepository.save(sender)` Yazmadık? (Kütüphaneci & Snapshot Analojisi)</span>
+        </div>
+        
+        <p style="color: #c9d1d9; font-size: 1.05rem; margin-bottom: 20px;">
+            Yazılıma yeni başlayanların en sık kafasını karıştıran ve mülakatlarda kıdemli geliştiricileri hemen ele veren soru şudur: 
+            <br><code style="font-size: 1rem; color: var(--primary);">sender.setBalance(newBalance);</code> yazdık, 
+            <strong>peki veritabanı nasıl güncelleniyor da biz <code>accountRepository.save(sender)</code> çağırmadık?</strong>
+        </p>
+
+        <!-- Kütüphaneci Benzetmesi 2 Kutu -->
+        <div class="dual-columns" style="margin-bottom: 26px;">
+            <div class="col-box" style="border-left: 4px solid var(--purple); background: rgba(188, 140, 255, 0.05);">
+                <div class="col-title" style="color: var(--purple); font-size: 0.95rem;">
+                    📖 Senaryo 1: Raftan Çekilen Defter (`Account sender`) &rarr; save() GEREKSİZ!
+                </div>
+                <p>1. Kodun başında <code>accountRepository.findByAccountNumberWithLock("TR100")</code> dediniz.</p>
+                <p>2. Kütüphaneci (Hibernate) gitti, raftan orijinal defteri aldı ve <strong>masanıza açık şekilde koydu</strong>.</p>
+                <p>3. Defteri masaya koyduğu an, sayfanın <strong>gizlice polaroid fotoğrafını (Snapshot) çekti</strong>: <em>(Bakiye: 1.000 TL)</em>.</p>
+                <p>4. Siz masadaki açık defterin üstünü çizip <code>700 TL</code> yazdınız (<code>sender.setBalance(...)</code>).</p>
+                <p>5. Metot bitti (<code>@Transactional</code> kapandı). Kütüphaneci defteri rafa geri koymadan önce polaroid fotoğrafa baktı:</p>
+                <div style="background: #090d13; padding: 10px; border-radius: 6px; font-size: 0.84rem; color: #79c0ff; font-family: var(--font-mono); margin-top: 8px;">
+                    "Dur bir dakika! Masaya koyduğumda 1.000 TL'ydi, şimdi 700 TL olmuş. Bu sayfa DEĞİŞMİŞ (DIRTY)!"
+                </div>
+                <p style="margin-top: 10px; color: var(--success); font-weight: 600;">
+                    &rarr; Kütüphaneci siz tek kelime etmeseniz bile, otomatik olarak rafa gidip <code>UPDATE accounts SET balance = 700...</code> yazar!
+                </p>
+            </div>
+
+            <div class="col-box" style="border-left: 4px solid var(--primary); background: rgba(88, 166, 255, 0.05);">
+                <div class="col-title" style="color: var(--primary); font-size: 0.95rem;">
+                    📄 Senaryo 2: Masada Sıfırdan Üretilen Fiş (`Transaction`) &rarr; save() ŞART!
+                </div>
+                <p>1. Masada boş bir kağıt aldınız ve sıfırdan bir transfer fişi yazdınız: <code>Transaction.builder()...build()</code>.</p>
+                <p>2. Bu fiş kütüphanenin rafında <strong>henüz hiç yok</strong>.</p>
+                <p>3. Kütüphaneci masanızda sıfırdan karaladığınız bu yeni kağıttan <strong>tamamen habersizdir</strong> (Snapshot'ı yoktur).</p>
+                <p>4. Metot biterken kütüphaneci "Bu kağıt da neyin nesi?" diyemez çünkü onunla hiçbir bağı yoktur.</p>
+                <p style="margin-top: 10px; color: var(--warning); font-weight: 600;">
+                    &rarr; O yüzden kütüphaneciye gidip açıkça teslim etmek zorundasınız:
+                </p>
+                <div style="background: #090d13; padding: 10px; border-radius: 6px; font-size: 0.84rem; color: #7ee787; font-family: var(--font-mono); margin-top: 8px;">
+                    transactionRepository.save(transaction); // "Al bu yeni fişi rafa kaydet!"
+                </div>
+            </div>
+        </div>
+
+        <!-- Görsel Hibernate Döngüsü -->
+        <div style="background: #090d13; border: 1px solid var(--border-color); border-radius: 10px; padding: 22px; margin: 20px 0;">
+            <div style="font-weight: 700; color: #ffffff; margin-bottom: 14px; font-size: 1rem; text-align: center;">
+                🔄 Hibernate Automatic Dirty Checking Yaşam Döngüsü (Life-Cycle)
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; text-align: center;">
+                <div style="background: #161b22; padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--primary); font-weight: 700; margin-bottom: 4px;">ADIM 1: ODAYA GİRİŞ</div>
+                    <div style="font-size: 0.85rem; color: #fff; font-weight: 600;">findByAccountNumberWithLock()</div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Entity <i>Managed (Yönetilen)</i> duruma geçer. Persistence Context'e eklenir.</div>
+                </div>
+
+                <div style="background: #161b22; padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--purple); font-weight: 700; margin-bottom: 4px;">ADIM 2: FOTOĞRAF (SNAPSHOT)</div>
+                    <div style="font-size: 0.85rem; color: #fff; font-weight: 600;">Snapshot Alınır</div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Hibernate ilk halini belleğin gizli bir köşesinde saklar: <code>balance = 1000</code>.</div>
+                </div>
+
+                <div style="background: #161b22; padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--warning); font-weight: 700; margin-bottom: 4px;">ADIM 3: SETTER İLE DEĞİŞİM</div>
+                    <div style="font-size: 0.85rem; color: #fff; font-weight: 600;">sender.setBalance(700)</div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Sadece Java nesnesi değişti, veritabanına henüz SQL atılmadı.</div>
+                </div>
+
+                <div style="background: #161b22; padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--success); font-weight: 700; margin-bottom: 4px;">ADIM 4: OTOMATİK FLUSH</div>
+                    <div style="font-size: 0.85rem; color: #fff; font-weight: 600;">Metot Biter (Commit)</div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Hibernate kıyaslar: 1000 &ne; 700! Kendisi otomatik <code>UPDATE</code> gönderir!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Karşılaştırma Tablosu -->
+        <table class="data-table" style="margin-top: 20px;">
+            <thead>
+                <tr>
+                    <th>Kriter</th>
+                    <th><code>Account sender</code> (Raftan Çekilen)</th>
+                    <th><code>Transaction</code> (Sıfırdan Üretilen)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Nesnenin Doğuşu</strong></td>
+                    <td>Veritabanından <code>findBy...</code> ile geldi</td>
+                    <td>Java kodunda <code>builder().build()</code> ile sıfırdan doğdu</td>
+                </tr>
+                <tr>
+                    <td><strong>JPA / Hibernate Durumu</strong></td>
+                    <td><span class="val-badge val-green">MANAGED (Yönetilen / Takipte)</span></td>
+                    <td><span class="val-badge val-red">TRANSIENT (Geçici / Habersiz)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Snapshot (Fotoğraf) Var mı?</strong></td>
+                    <td><span class="val-badge val-green">EVET (İlk hali hafızada)</span></td>
+                    <td><span class="val-badge val-red">HAYIR (Hiç çekilmedi)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>`save()` Çağrısı Gerekli mi?</strong></td>
+                    <td><strong style="color: var(--danger);">GEREKSİZ</strong> (Hibernate kendisi halleder)</td>
+                    <td><strong style="color: var(--success);">ŞART</strong> (Tanıtmak için zorunlu)</td>
+                </tr>
+                <tr>
+                    <td><strong>SQL Karşılığı</strong></td>
+                    <td>Otomatik <code>UPDATE accounts SET balance = ...</code></td>
+                    <td><code>INSERT INTO transactions (...)</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Kıdemli Notu Callout -->
+        <div class="callout callout-warning" style="margin-top: 24px;">
+            <strong>Kıdemli Mühendis Mülakat Notu:</strong><br>
+            <em>"Peki <code>accountRepository.save(sender)</code> yazsaydık kod bozulur muydu?"</em><br>
+            Hayır, kod patlamazdı. Ama Spring Data JPA'nın <code>save()</code> metodu gereksiz yere bir <code>entityInformation.isNew()</code> ve ardından <code>entityManager.merge()</code> kontrolü çalıştırırdı. Kütüphanecinin önünde açık duran defteri gösterip kütüphaneciye tekrar <em>'Bunu kaydet'</em> demek gibidir; kıdemli bir kod incelemecisi (code reviewer) bunu gördüğünde <strong>JPA yaşam döngüsünün tam kavranmadığını</strong> anlar!
+        </div>
+
+        <!-- Altın Kural -->
+        <div class="callout callout-success" style="font-size: 1rem; text-align: center; font-weight: 600;">
+            🔑 <strong>TEK CÜMLELİK ALTIN KURAL:</strong><br>
+            <span style="font-size: 0.95rem; font-weight: 400; color: #e6edf3;">
+                Sıfırdan yarattığın nesneyi <strong>save()</strong> ile tanıtırsın; veritabanından çektiğin nesneyi ise sadece <strong>set...()</strong> ile değiştirirsin, <code>@Transactional</code> bitişinde Hibernate onu otomatik kaydeder!
+            </span>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">📊</span>
+            <span>Bir Transfer Sırasında Veritabanında Neler Değişir? (Somut Örnek)</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            <strong>Senaryo:</strong> Hesap A (Bakiye: 1.000 TL), Hesap B'ye (Bakiye: 200 TL) <strong>300 TL</strong> para gönderiyor.
+        </p>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Tablo Adı</th>
+                    <th>Kolonlar / Kayıtlar</th>
+                    <th>Transfer Öncesi (T0)</th>
+                    <th>Transfer Sonrası (T1)</th>
+                    <th>Muhasebe Mantığı</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>accounts</strong> (Hesap A)</td>
+                    <td>balance, status</td>
+                    <td><span class="val-badge val-blue">1000.0000 TL</span></td>
+                    <td><span class="val-badge val-red">700.0000 TL</span></td>
+                    <td>Gönderen hesaptan 300 TL eksildi</td>
+                </tr>
+                <tr>
+                    <td><strong>accounts</strong> (Hesap B)</td>
+                    <td>balance, status</td>
+                    <td><span class="val-badge val-blue">200.0000 TL</span></td>
+                    <td><span class="val-badge val-green">500.0000 TL</span></td>
+                    <td>Alıcı hesaba 300 TL eklendi</td>
+                </tr>
+                <tr>
+                    <td><strong>transactions</strong></td>
+                    <td>type, status, amount, refNo</td>
+                    <td><em>Kayıt Yok</em></td>
+                    <td><span class="val-badge val-green">COMPLETED | 300 TL</span></td>
+                    <td>İşlemin üst başlığı ve idempotency anahtarı mühürlendi</td>
+                </tr>
+                <tr>
+                    <td><strong>ledger_entries</strong> (1. Satır)</td>
+                    <td>account_id, entry_type, amount</td>
+                    <td><em>Kayıt Yok</em></td>
+                    <td><span class="val-badge val-red">Hesap A | DEBIT | 300 TL</span></td>
+                    <td>Hesap A'nın borçlandığı değişmez satır</td>
+                </tr>
+                <tr>
+                    <td><strong>ledger_entries</strong> (2. Satır)</td>
+                    <td>account_id, entry_type, amount</td>
+                    <td><em>Kayıt Yok</em></td>
+                    <td><span class="val-badge val-green">Hesap B | CREDIT | 300 TL</span></td>
+                    <td>Hesap B'nin alacaklandığı değişmez satır</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-success">
+            <strong>Matematiksel Sağlama:</strong><br>
+            Hesap A değişimi: -300 TL | Hesap B değişimi: +300 TL<br>
+            Defter Girişleri: 1 x DEBIT (300 TL) == 1 x CREDIT (300 TL) &rarr; <strong>Net Fark: 0.00 TL (Sıfır Hata)</strong>
+        </div>
+    </div>
+
+    <!-- Mülakat & Mimari Soru-Cevap Cheat-Sheet -->
+    <div class="card">
+        <div class="card-title">
+            <span class="icon">💡</span>
+            <span>Mülakat & Kıdemli Mühendis Soru-Cevap Köşesi</span>
+        </div>
+
+        <div class="qa-card">
+            <div class="qa-q">❓ Soru 1: Deadlock'ı veritabanında çözmek varken neden Java katmanında çözdünüz?</div>
+            <div class="qa-a">
+                <strong>Cevap:</strong> Veritabanları (PostgreSQL vb.) deadlock oluştuğunda bunu "Deadlock Detector" ile tespit edip 
+                işlemlerden birini <code>PSQLException: deadlock detected</code> ile iptal eder (kill eder). 
+                Bu durum istemciye hata döner ve veritabanı CPU'sunu yorar. 
+                Biz <code>compareTo</code> ile hesap numaralarını alfabetik sıraya sokarak <em>Circular Wait (Döngüsel Bekleme)</em> şartını 
+                daha kilit talep edilmeden ortadan kaldırdık. Böylece deadlock veritabanına hiç yansımaz, thread'ler birbirini sırayla bekler.
+            </div>
+        </div>
+
+        <div class="qa-card">
+            <div class="qa-q">❓ Soru 2: Neden `Account.balance` güncellendikten sonra `accountRepository.save(sender)` çağırmadık?</div>
+            <div class="qa-a">
+                <strong>Cevap:</strong> Spring'de <code>@Transactional</code> metotlar içinde JPA Persistence Context (EntityManager) aktiftir. 
+                <code>findByAccountNumberWithLock</code> ile çekilen entity'ler <em>Managed (Yönetilen)</em> durumdadır. 
+                Hibernate, metodun bitiminde (Transaction commit anında) entity üzerindeki değişiklikleri otomatik tespit eder 
+                (<em>Dirty Checking</em>) ve gerekli <code>UPDATE</code> sorgusunu veritabanına kendisi gönderir. 
+                Gereksiz <code>save()</code> çağrısı yapmak gereksiz flush veya kod kalabalığı yaratır.
+            </div>
+        </div>
+
+        <div class="qa-card">
+            <div class="qa-q">❓ Soru 3: Neden sınıf seviyesinde `@Transactional(readOnly = true)`, metot seviyesinde `@Transactional(rollbackFor = Exception.class)` kullandık?</div>
+            <div class="qa-a">
+                <strong>Cevap:</strong> Sınıf seviyesindeki <code>readOnly = true</code>, "Varsayılan Olarak Güvenli" (Secure by Default) mimarisidir; 
+                okuma metotlarında Hibernate'in nesne kopyası (snapshot) almasını kapatarak bellek tasarrufu sağlar. 
+                Metot seviyesindeki tanım ise bunu ezer (override). <code>rollbackFor = Exception.class</code> ise Spring'in varsayılanda 
+                Checked Exception'larda rollback yapmama açığını kapatır ve her türlü hatada işlemi atomik olarak geri alır.
+            </div>
+        </div>
+
+        <div class="qa-card">
+            <div class="qa-q">❓ Soru 4: Idempotency tablosunda neden `idempotencyKey` kolonu UNIQUE olmak zorundadır?</div>
+            <div class="qa-a">
+                <strong>Cevap:</strong> İki istek aynı anda (aynı milisaniyede) gelse bile veritabanındaki <code>UNIQUE CONSTRAINT</code> sayesinde 
+                aynı anahtara sahip ikinci istek <code>DataIntegrityViolationException</code> alır ve iki kez para çıkışı fiziksel olarak imkansız hale gelir.
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>Core Banking Ledger System Architecture Guide &bull; banking-v1 &bull; 2026</p>
+        <p style="margin-top: 6px; font-size: 0.78rem;">Bu rehber, transfer motorunun tüm iç dinamiklerini ve best-practice standartlarını belgelemek üzere hazırlanmıştır.</p>
+    </footer>
+
+</div>
+
+</body>
+</html>

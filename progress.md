@@ -46,31 +46,23 @@
     - Finansal değişmezlik için `LedgerEntry` kolonlarına `updatable = false` kısıtları uygulandı.
     - Hibernate Proxy ve Set güvenliği için Business Key (`accountNumber`) tabanlı `equals()` ve `getClass().hashCode()` uygulandı.
     - JPA 3.2 standardı ile veritabanı seviyesinde `@CheckConstraint` kuralları tanımlandı (`balance >= 0`, `amount > 0`).
-    - İnteraktif görsel teknik dokümantasyonlar hazırlandı (`jpa_equals_and_hashcode_guide.html`, `repository_and_locking_guide.html`, `optimistic_vs_pessimistic_locking_guide.html`).
 - [x] **Repository Katmanı ve Concurrency Sorguları (Öğrenci Tarafından Tamamlandı):**
   - `CustomerRepository`: Kimlik no (TCKN/VKN) ve e-posta tekillik sorguları.
   - `AccountRepository`: Concurrency ve Deadlock-free Lock Ordering için `@Lock(LockModeType.PESSIMISTIC_WRITE)` ile `findByIdWithLock` ve `findByAccountNumberWithLock`.
   - `TransactionRepository`: Idempotency denetimleri için `findByIdempotencyKey` ve `existsByIdempotencyKey`.
   - `LedgerEntryRepository`: Hesap hareketleri (`findByAccountIdOrderByCreatedAtDesc`), tarih aralıklı ekstre sorguları (`findByAccountIdAndDateRange`) ve işlem bazlı çift kayıt filtreleme (`findByTransactionId`).
 - [x] **Transfer DTO'ları ve Özel İstisna (Exception) Hiyerarşisi (Öğrenci Tarafından Tamamlandı):**
-  - Domain istisna hiyerarşisi (`BankingException`, `InsufficientBalanceException`, `AccountNotFoundException`, `AccountInactiveException`, `CurrencyMismatchException`, `SelfTransferException`).
-  - Jakarta Bean Validation zırhlı `TransferRequest` ve `TransferResponse` record DTO'ları.
+  - Domain istisna hiyerarşisi (`BankingException`, `InsufficientBalanceException`, `AccountNotFoundException`, `AccountInactiveException`, `CurrencyMismatchException`, `SelfTransferException`, `CustomerNotFoundException`, `CustomerAlreadyExistsException`).
+  - Jakarta Bean Validation zırhlı `TransferRequest`, `TransferResponse`, `CreateAccountRequest`, `AccountResponse`, `CreateCustomerRequest`, `CustomerResponse`, `DepositRequest` record DTO'ları.
   - Sektör standardı `referenceNumber` takibi (`Transaction` entity, DTO ve repository metodları).
 - [x] **Transfer Motoru ve Çift Taraflı Muhasebe Servisi (Öğrenci Tarafından Tamamlandı):**
   - `TransferMapper`: `@Component` olarak Stream API ile `DEBIT` ve `CREDIT` satırlarını filtreleyen izole mapper bileşeni.
-  - `TransferService`:
+  - `TransferService.transfer`:
     - Mükerrer isteklere karşı **Idempotency** koruması (`findByIdempotencyKey`).
     - Karşılıklı kilitlenmeyi önleyen **Deadlock-Free Lock Ordering** (Doğal alfabetik kilit sırası).
     - Bakiye, para birimi ve hesap statü kontrolleri.
     - Atomik **Double-Entry Bookkeeping** ($\sum DEBIT = \sum CREDIT$) ve `referenceNumber` üretimi.
-
----
-
-## 🎯 Sıradaki Adımlar
-
 - [x] **Hesap Açılışı ve Yönetim Servisi (Öğrenci Tarafından Tamamlandı):**
-  - DTO'lar: `CreateAccountRequest`, `AccountResponse` (Java 21 record).
-  - İstisna: `CustomerNotFoundException`.
   - `AccountMapper`: DTO dönüşümünü izole eden bağımsız `@Component`.
   - `AccountService`:
     - Sınıf seviyesinde `@Transactional(readOnly = true)` ile Hibernate dirty-checking optimizasyonu ve `LazyInitializationException` koruması.
@@ -78,26 +70,13 @@
     - `ThreadLocalRandom` ile Türkiye standardında 24 haneli rakam bloğu içeren IBAN motoru (`TR` + 24 hane = 26 karakter).
     - `existsByAccountNumber` ile döngüsel çakışma koruması (collision guard).
     - `status(AccountStatus.ACTIVE)` ve başlangıç bakiyesi `BigDecimal.ZERO` ile güvenli hesap oluşturma.
-
----
-
-## 🎯 Sıradaki Adımlar
-
 - [x] **Müşteri Kayıt ve Onboarding Servisi (Öğrenci Tarafından Tamamlandı):**
-  - DTO'lar: `CreateCustomerRequest` (Jakarta Validation: `@Size(min=10, max=11)`, `@Email`, `@NotBlank`), `CustomerResponse` (record).
-  - İstisna: `CustomerAlreadyExistsException` (`BankingException` hiyerarşisi altında).
   - `CustomerMapper`: Bağımsız `@Component` DTO dönüştürücü.
   - `CustomerService`:
     - `@Transactional(readOnly = true)` ve `@Transactional(rollbackFor = Exception.class)` mimarisi.
     - Savunmacı tekillik kontrolleri (`existsByIdentityNumber`, `existsByEmail`) ile veritabanı 500 hatalarını önleme.
     - Kimlik no ve ID bazlı müşteri sorgulama metotları.
-
----
-
-## 🎯 Sıradaki Adımlar
-
 - [x] **Para Girişi (Deposit) ve Sistem Kasa Mimarisi (Öğrenci Tarafından Tamamlandı):**
-  - DTO: `DepositRequest` (Jakarta Validation: `@DecimalMin("0.01")`, `@Positive`, `@NotBlank`).
   - Altyapı: `DataInitializer` (`CommandLineRunner`) ile idempotent Sistem Müşterisi ("SYSTEM", "BANK_VAULT") ve 1 Milyar TL sermayeli Kasa Hesabı (`SYSTEM_TRY_ACCOUNT`).
   - `TransferService.deposit`:
     - Idempotency denetimi.
@@ -105,11 +84,21 @@
     - Statü, para birimi ve bakiye doğrulamaları.
     - Çift taraflı muhasebe: Kasa hesabı borçlandırılır (`DEBIT`), müşteri hesabı alacaklandırılır (`CREDIT`). Toplam borç-alacak dengesi ($\sum DEBIT = \sum CREDIT$) korunur.
     - `DEP-` önekli dekont / referans numarası üretimi.
+- [x] **Teknik Görsel Rehberler ve Eğitim Dokümantasyonu:**
+  - `jpa_equals_and_hashcode_guide.html`: JPA entity'lerinde equals/hashCode sözleşmesi, Hibernate proxy ve Set güvenliği.
+  - `repository_and_locking_guide.html`: Pessimistic vs Optimistic locking, SQL FOR UPDATE analizi.
+  - `optimistic_vs_pessimistic_locking_guide.html`: Çakışma stratejileri ve @Version mekaniği.
+  - `transfer_service_architecture_and_workflow_guide.html`: 5 Güvenlik Kapısı, Deadlock-Free Lock Ordering, Kütüphaneci & Snapshot Dirty Checking analojisi.
 
 ---
 
-## 🎯 Sıradaki Adımlar
+## 🎯 Sıradaki Adımlar (Yarın Başlanacak)
 
-- [ ] Birim (Unit) testlerinin (Mockito ile) yazılması (`TransferService`, `AccountService`, `CustomerService`).
-- [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
-- [ ] Concurrency, Deadlock ve Double-Entry entegrasyon testlerinin (Testcontainers ile) yazılması.
+- [ ] **Birim (Unit) Testleri (Mockito):**
+  - `TransferServiceTest`: Idempotency, Self-Transfer, Yetersiz Bakiye, Aktif Olmayan Hesap, Başarılı Transfer ve Doğru DEBIT/CREDIT oluşturma testleri.
+  - `AccountServiceTest`: Müşteri bulunamadı kontrolü, IBAN üretim formatı testi.
+  - `CustomerServiceTest`: Tekil TCKN/Email doğrulama testleri.
+- [ ] **Entegrasyon & Concurrency Testleri (Testcontainers):**
+  - Gerçek PostgreSQL konteyner üzerinde 100 eşzamanlı transfer ile Race Condition ve Deadlock testleri.
+- [ ] **Ekstre & Finansal Analiz (Stream API):**
+  - `LedgerEntry` hareketlerinin Java Stream API (`groupingBy`, `filter`, `reduce`) ile analiz edilmesi.
