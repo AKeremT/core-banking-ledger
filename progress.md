@@ -68,6 +68,35 @@
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] Hesap açılışı ve bakiye yönetimi için `AccountService` katmanının geliştirilmesi.
+- [x] **Hesap Açılışı ve Yönetim Servisi (Öğrenci Tarafından Tamamlandı):**
+  - DTO'lar: `CreateAccountRequest`, `AccountResponse` (Java 21 record).
+  - İstisna: `CustomerNotFoundException`.
+  - `AccountMapper`: DTO dönüşümünü izole eden bağımsız `@Component`.
+  - `AccountService`:
+    - Sınıf seviyesinde `@Transactional(readOnly = true)` ile Hibernate dirty-checking optimizasyonu ve `LazyInitializationException` koruması.
+    - Metot seviyesinde `@Transactional(rollbackFor = Exception.class)` ile atomik kayıt.
+    - `ThreadLocalRandom` ile Türkiye standardında 24 haneli rakam bloğu içeren IBAN motoru (`TR` + 24 hane = 26 karakter).
+    - `existsByAccountNumber` ile döngüsel çakışma koruması (collision guard).
+    - `status(AccountStatus.ACTIVE)` ve başlangıç bakiyesi `BigDecimal.ZERO` ile güvenli hesap oluşturma.
+
+---
+
+## 🎯 Sıradaki Adımlar
+
+- [x] **Müşteri Kayıt ve Onboarding Servisi (Öğrenci Tarafından Tamamlandı):**
+  - DTO'lar: `CreateCustomerRequest` (Jakarta Validation: `@Size(min=10, max=11)`, `@Email`, `@NotBlank`), `CustomerResponse` (record).
+  - İstisna: `CustomerAlreadyExistsException` (`BankingException` hiyerarşisi altında).
+  - `CustomerMapper`: Bağımsız `@Component` DTO dönüştürücü.
+  - `CustomerService`:
+    - `@Transactional(readOnly = true)` ve `@Transactional(rollbackFor = Exception.class)` mimarisi.
+    - Savunmacı tekillik kontrolleri (`existsByIdentityNumber`, `existsByEmail`) ile veritabanı 500 hatalarını önleme.
+    - Kimlik no ve ID bazlı müşteri sorgulama metotları.
+
+---
+
+## 🎯 Sıradaki Adımlar
+
+- [ ] Para Girişi (Deposit) akışının Sistem Kasa Hesabı üzerinden çift taraflı muhasebe ile tamamlanması.
 - [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
-- [ ] Concurrency, Deadlock ve Double-Entry testlerinin (Testcontainers ile) yazılması.
+- [ ] Birim (Unit) testlerinin (Mockito ile) yazılması (`TransferService`, `AccountService`, `CustomerService`).
+- [ ] Concurrency, Deadlock ve Double-Entry entegrasyon testlerinin (Testcontainers ile) yazılması.
