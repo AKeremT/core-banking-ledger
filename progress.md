@@ -96,7 +96,20 @@
 
 ## 🎯 Sıradaki Adımlar
 
-- [ ] Para Girişi (Deposit) akışının Sistem Kasa Hesabı üzerinden çift taraflı muhasebe ile tamamlanması.
-- [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
+- [x] **Para Girişi (Deposit) ve Sistem Kasa Mimarisi (Öğrenci Tarafından Tamamlandı):**
+  - DTO: `DepositRequest` (Jakarta Validation: `@DecimalMin("0.01")`, `@Positive`, `@NotBlank`).
+  - Altyapı: `DataInitializer` (`CommandLineRunner`) ile idempotent Sistem Müşterisi ("SYSTEM", "BANK_VAULT") ve 1 Milyar TL sermayeli Kasa Hesabı (`SYSTEM_TRY_ACCOUNT`).
+  - `TransferService.deposit`:
+    - Idempotency denetimi.
+    - Kasa ve Müşteri hesapları arasında Deadlock-Free Lock Ordering (alfabetik sıralı `PESSIMISTIC_WRITE`).
+    - Statü, para birimi ve bakiye doğrulamaları.
+    - Çift taraflı muhasebe: Kasa hesabı borçlandırılır (`DEBIT`), müşteri hesabı alacaklandırılır (`CREDIT`). Toplam borç-alacak dengesi ($\sum DEBIT = \sum CREDIT$) korunur.
+    - `DEP-` önekli dekont / referans numarası üretimi.
+
+---
+
+## 🎯 Sıradaki Adımlar
+
 - [ ] Birim (Unit) testlerinin (Mockito ile) yazılması (`TransferService`, `AccountService`, `CustomerService`).
+- [ ] Ekstre analizi için Java Stream API servis metotlarının geliştirilmesi.
 - [ ] Concurrency, Deadlock ve Double-Entry entegrasyon testlerinin (Testcontainers ile) yazılması.

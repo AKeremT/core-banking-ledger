@@ -1,6 +1,8 @@
 package com.akt.banking_v1.service;
 
 import com.akt.banking_v1.common.exception.*;
+import com.akt.banking_v1.config.DataInitializer;
+import com.akt.banking_v1.dto.DepositRequest;
 import com.akt.banking_v1.dto.TransferRequest;
 import com.akt.banking_v1.dto.TransferResponse;
 import com.akt.banking_v1.enums.AccountStatus;
@@ -99,6 +101,81 @@ public class TransferService {
 
         transaction.getLedgerEntries().add(debitEntry);
         transaction.getLedgerEntries().add(creditEntry);
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        return transferMapper.toResponse(savedTransaction);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public TransferResponse deposit(DepositRequest request, String idempotencyKey) {
+
+        Optional<Transaction> existingTx = transactionRepository.findByIdempotencyKey(idempotencyKey);
+        if (existingTx.isPresent())
+            return transferMapper.toResponse(existingTx.get());
+
+        String senderAccountNumber = DataInitializer.SYSTEM_TRY_ACCOUNT; // VAULT
+        String receiverAccountNumber = request.accountNumber();          // CUSTOMER
+
+        if (senderAccountNumber.equals(receiverAccountNumber))
+            throw new SelfTransferException("Sender and receiver accounts are the same!");
+
+        boolean isSenderFirst = senderAccountNumber.compareTo(receiverAccountNumber) < 0;
+
+        String firstAccountNumber = isSenderFirst ? senderAccountNumber : receiverAccountNumber;
+        String secondAccountNumber = isSenderFirst ? receiverAccountNumber : senderAccountNumber;
+
+        Account firstAccount = accountRepository.findByAccountNumberWithLock(firstAccountNumber)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + firstAccountNumber));
+
+        Account secondAccount = accountRepository.findByAccountNumberWithLock(secondAccountNumber)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + secondAccountNumber));
+
+        Account sender = isSenderFirst ? firstAccount : secondAccount; // VAULT
+        Account receiver = isSenderFirst ? secondAccount : firstAccount; // CUSTOMER
+
+        if (sender.getStatus() != AccountStatus.ACTIVE || receiver.getStatus() != AccountStatus.ACTIVE)
+            throw new AccountInactiveException("Inactive accounts!");
+
+        if (sender.getCurrency() != receiver.getCurrency())
+            throw new CurrencyMismatchException("Currency mismatch!");
+
+        if (sender.getBalance().compareTo(request.amount()) < 0)
+            throw new InsufficientBalanceException("Insufficient balance!");
+
+        sender.setBalance(sender.getBalance().subtract(request.amount()));
+        receiver.setBalance(receiver.getBalance().add(request.amount()));
+
+        String referenceNumber = "DEP-"
+                + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+                + "-"
+                + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        Transaction transaction = Transaction.builder()
+                .idempotencyKey(idempotencyKey)
+                .referenceNumber(referenceNumber)
+                .type(TransactionType.DEPOSIT)
+                .status(TransactionStatus.COMPLETED)
+                .amount(request.amount())
+                .currency(sender.getCurrency())
+                .description(request.description())
+                .build();
+
+        LedgerEntry debit = LedgerEntry.builder()
+                .account(sender)
+                .entryType(EntryType.DEBIT)
+                .amount(request.amount())
+                .transaction(transaction)
+                .build();
+
+        LedgerEntry credit = LedgerEntry.builder()
+                .account(receiver)
+                .entryType(EntryType.CREDIT)
+                .amount(request.amount())
+                .transaction(transaction)
+                .build();
+
+        transaction.getLedgerEntries().add(debit);
+        transaction.getLedgerEntries().add(credit);
 
         Transaction savedTransaction = transactionRepository.save(transaction);
         return transferMapper.toResponse(savedTransaction);
