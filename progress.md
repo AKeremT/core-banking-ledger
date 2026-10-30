@@ -89,13 +89,17 @@
   - `repository_and_locking_guide.html`: Pessimistic vs Optimistic locking, SQL FOR UPDATE analizi.
   - `optimistic_vs_pessimistic_locking_guide.html`: Çakışma stratejileri ve @Version mekaniği.
   - `transfer_service_architecture_and_workflow_guide.html`: 5 Güvenlik Kapısı, Deadlock-Free Lock Ordering, Kütüphaneci & Snapshot Dirty Checking analojisi.
+- [x] **Birim (Unit) Testleri (Mockito - Başlandı):**
+  - `TransferServiceTest`: 
+    - Happy Path: Başarılı transfer, sıralı kilitleme, kuruş hassasiyetli bakiye güncellemeleri ve `verify` kontrolleri.
+    - Idempotency Kalkanı: Mükerrer isteklerde erken dönüş ve `never()` ile sıfır veritabanı kilit/kayıt teftişi.
 
 ---
 
-## 🎯 Sıradaki Adımlar (Yarın Başlanacak)
+## 🎯 Sıradaki Adımlar (Devam Edenler)
 
 - [ ] **Birim (Unit) Testleri (Mockito):**
-  - `TransferServiceTest`: Idempotency, Self-Transfer, Yetersiz Bakiye, Aktif Olmayan Hesap, Başarılı Transfer ve Doğru DEBIT/CREDIT oluşturma testleri.
+  - `TransferServiceTest`: Self-Transfer, Yetersiz Bakiye, Aktif Olmayan Hesap, Para Birimi Uyuşmazlığı, Hesap Bulunamadı testleri.
   - `AccountServiceTest`: Müşteri bulunamadı kontrolü, IBAN üretim formatı testi.
   - `CustomerServiceTest`: Tekil TCKN/Email doğrulama testleri.
 - [ ] **Entegrasyon & Concurrency Testleri (Testcontainers):**
