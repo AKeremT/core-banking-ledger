@@ -1,5 +1,6 @@
 package com.akt.banking_v1.service;
 
+import com.akt.banking_v1.common.exception.*;
 import com.akt.banking_v1.dto.TransferRequest;
 import com.akt.banking_v1.dto.TransferResponse;
 import com.akt.banking_v1.enums.AccountStatus;
@@ -22,8 +23,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -146,5 +146,154 @@ public class TransferServiceTest {
         verify(accountRepository, never()).findByAccountNumberWithLock(any());
         verify(transactionRepository, never()).save(any());
         verify(transferMapper, times(1)).toResponse(existingTx);
+    }
+
+    @Test
+    void transfer_whenSenderAndReceiverSame_shouldThrowSelfTransferException() {
+
+        String senderIban = "TR111";
+        String receiverIban = "TR111";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100");
+        String description = "kira";
+
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, description);
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        assertThrows(SelfTransferException.class, () -> transferService.transfer(request, idempotencyKey));
+
+        verify(accountRepository, never()).findByAccountNumberWithLock(any());
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenInsufficientBalance_shouldThrowInsufficientBalanceException() {
+
+        String senderIban = "TR111";
+        String receiverIban = "TR222";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100");
+        String description = "kira";
+
+        Account sender = Account.builder()
+                .id(1L)
+                .accountNumber(senderIban)
+                .balance(new BigDecimal("50"))
+                .currency(Currency.TRY)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        Account receiver = Account.builder()
+                .id(2L)
+                .accountNumber(receiverIban)
+                .balance(new BigDecimal("500"))
+                .currency(Currency.TRY)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, description);
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        when(accountRepository.findByAccountNumberWithLock(senderIban)).thenReturn(Optional.of(sender));
+        when(accountRepository.findByAccountNumberWithLock(receiverIban)).thenReturn(Optional.of(receiver));
+
+        assertThrows(InsufficientBalanceException.class, () -> transferService.transfer(request, idempotencyKey));
+
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenAccountNotFound_shouldThrowAccountNotFoundException() {
+
+        String senderIban = "TR111";
+        String receiverIban = "TR222";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100");
+        String description = "kira";
+
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, description);
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(accountRepository.findByAccountNumberWithLock(senderIban)).thenReturn(Optional.empty());
+
+        assertThrows(AccountNotFoundException.class, () -> transferService.transfer(request, idempotencyKey));
+
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenAccountIsInactive_shouldThrowAccountInactiveException() {
+
+        String senderIban = "TR111";
+        String receiverIban = "TR222";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100");
+        String description = "kira";
+
+        Account sender = Account.builder()
+                .id(1L)
+                .accountNumber(senderIban)
+                .balance(new BigDecimal("50"))
+                .currency(Currency.TRY)
+                .status(AccountStatus.SUSPENDED)
+                .build();
+
+        Account receiver = Account.builder()
+                .id(2L)
+                .accountNumber(receiverIban)
+                .balance(new BigDecimal("500"))
+                .currency(Currency.TRY)
+                .status(AccountStatus.CLOSED)
+                .build();
+
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, "kira");
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        when(accountRepository.findByAccountNumberWithLock(senderIban)).thenReturn(Optional.of(sender));
+        when(accountRepository.findByAccountNumberWithLock(receiverIban)).thenReturn(Optional.of(receiver));
+
+        assertThrows(AccountInactiveException.class, () -> transferService.transfer(request, idempotencyKey));
+
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException() {
+
+        String senderIban = "TR111";
+        String receiverIban = "TR222";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100");
+        String description = "kira";
+
+        Account sender = Account.builder()
+                .id(1L)
+                .accountNumber(senderIban)
+                .balance(new BigDecimal("50"))
+                .currency(Currency.USD)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        Account receiver = Account.builder()
+                .id(2L)
+                .accountNumber(receiverIban)
+                .balance(new BigDecimal("500"))
+                .currency(Currency.EUR)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, "kira");
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        when(accountRepository.findByAccountNumberWithLock(senderIban)).thenReturn(Optional.of(sender));
+        when(accountRepository.findByAccountNumberWithLock(receiverIban)).thenReturn(Optional.of(receiver));
+
+        assertThrows(CurrencyMismatchException.class, () -> transferService.transfer(request, idempotencyKey));
+
+        verify(transactionRepository, never()).save(any());
     }
 }

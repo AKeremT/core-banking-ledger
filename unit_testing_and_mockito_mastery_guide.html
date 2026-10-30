@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birim Test & Mockito Ustalık Rehberi: Core Banking Senaryoları</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1c2128;
+            --border-color: #30363d;
+            --primary: #58a6ff;
+            --primary-glow: rgba(88, 166, 255, 0.15);
+            --success: #3fb950;
+            --success-glow: rgba(63, 185, 80, 0.15);
+            --danger: #f85149;
+            --danger-glow: rgba(248, 81, 73, 0.15);
+            --warning: #d29922;
+            --warning-glow: rgba(210, 153, 34, 0.15);
+            --purple: #bc8cff;
+            --purple-glow: rgba(188, 140, 255, 0.15);
+            --cyan: #39c5cf;
+            --cyan-glow: rgba(57, 197, 207, 0.15);
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1160px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 35px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid transparent;
+        }
+
+        .badge-primary { background: var(--primary-glow); color: var(--primary); border-color: rgba(88, 166, 255, 0.3); }
+        .badge-success { background: var(--success-glow); color: var(--success); border-color: rgba(63, 185, 80, 0.3); }
+        .badge-warning { background: var(--warning-glow); color: var(--warning); border-color: rgba(210, 153, 34, 0.3); }
+        .badge-purple  { background: var(--purple-glow); color: var(--purple); border-color: rgba(188, 140, 255, 0.3); }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #58a6ff 0%, #bc8cff 50%, #3fb950 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 40px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin: 25px 0 12px;
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: #c9d1d9;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: #58a6ff55;
+            transform: translateY(-2px);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        /* Callout Alerts */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+            background: var(--bg-card);
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .alert-info    { border-color: var(--primary); background: rgba(88, 166, 255, 0.06); }
+        .alert-success { border-color: var(--success); background: rgba(63, 185, 80, 0.06); }
+        .alert-warning { border-color: var(--warning); background: rgba(210, 153, 34, 0.06); }
+        .alert-danger  { border-color: var(--danger); background: rgba(248, 81, 73, 0.06); }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .alert-content p {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        /* Code Block Styling */
+        pre {
+            background-color: #0b0e14;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: #f0f6fc;
+            margin-bottom: 18px;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: rgba(110, 118, 129, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88em;
+            color: #79c0ff;
+        }
+
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
+        /* Syntax simulation */
+        .kw { color: #ff7b72; font-weight: 600; }
+        .anno { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cls { color: #ffa657; }
+        .num { color: #79c0ff; }
+        .cm { color: #8b949e; font-style: italic; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            padding: 12px 14px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #1c2128;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(22, 27, 34, 0.6);
+        }
+
+        .tag-success {
+            background: rgba(63, 185, 80, 0.2);
+            color: #3fb950;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .tag-danger {
+            background: rgba(248, 81, 73, 0.2);
+            color: #f85149;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="badge-container">
+            <span class="badge badge-primary">Spring Boot 3 & Java 21</span>
+            <span class="badge badge-success">JUnit 5 & Mockito</span>
+            <span class="badge badge-purple">7/7 Passed</span>
+            <span class="badge badge-warning">Core Banking Concurrency</span>
+        </div>
+        <h1>Birim Test & Mockito Ustalık Rehberi</h1>
+        <p class="subtitle">Finansal servislerde atomik test felsefesi, Mockito mental modeli, 7 güvenlik kapısı analizi ve tecrübeyle öğrenilen kritik püf noktaları.</p>
+    </header>
+
+    <!-- BÖLÜM 1: BİRİM TEST FELSEFESİ -->
+    <section>
+        <h2>1. Birim Test (Unit Testing) Felsefesi</h2>
+        <div class="card">
+            <p><strong>Birim Test Nedir?</strong> Bir uygulamanın en küçük mantıksal yapı taşını (genellikle tek bir metot veya sınıf) dış dünyadan (veritabanı, internet, dosya sistemi vb.) <strong>tamamen izole ederek</strong> hafızada milisaniyeler içinde test etme sanatıdır.</p>
+            
+            <div class="grid-2" style="margin-top: 20px;">
+                <div style="background: rgba(88, 166, 255, 0.05); padding: 18px; border-radius: 8px; border: 1px solid rgba(88, 166, 255, 0.2);">
+                    <h3 style="margin-top: 0;">🚗 Otomobil Fabrikası Analojisi</h3>
+                    <p>Bir otomobil üretilirken fren balatası önce <strong>laboratuvarda tek başına</strong> test edilir (Unit Test). Araba tamamen birleştirilip piste çıkarılmaz (E2E Test). Eğer fren balatası laboratuvarda bozuk çıkarsa, arabayı piste çıkarıp benzin ve zaman yakmanın hiçbir anlamı yoktur.</p>
+                </div>
+                <div style="background: rgba(63, 185, 80, 0.05); padding: 18px; border-radius: 8px; border: 1px solid rgba(63, 185, 80, 0.2);">
+                    <h3 style="margin-top: 0;">⚡ @SpringBootTest vs @ExtendWith(MockitoExtension.class)</h3>
+                    <p><code>@SpringBootTest</code> tüm Spring Context'ini, Hibernate'i ve veritabanı bağlantılarını ayağa kaldırır (15-30 saniye sürer).<br><br>Oysa <code>@ExtendWith(MockitoExtension.class)</code> Spring Context'ini <strong>hiç başlatmaz</strong>; saf Java belleğinde <strong>1 saniyenin altında</strong> çalışır!</p>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">📐</span>
+                <div class="alert-content">
+                    <p><strong>AAA (Arrange - Act - Assert) / BDD (Given - When - Then) Deseni:</strong><br>
+                    <strong>GIVEN (Hazırlık):</strong> Test verilerini oluştur, kukla mock nesnelere rol ver (<code>when(...).thenReturn(...)</code>).<br>
+                    <strong>WHEN (Eylem):</strong> Test edilen servisin metodunu çağır (<code>transferService.transfer(...)</code>).<br>
+                    <strong>THEN (Denetim):</strong> Sonuçları kontrol et (<code>assertEquals</code>), patlayan hataları yakala (<code>assertThrows</code>) ve repo çağrılarını sorgula (<code>verify</code>).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BÖLÜM 2: MOCKITO KAVRAMLARI -->
+    <section>
+        <h2>2. Mockito Mental Modeli ve Temel Yapı Taşları</h2>
+        <div class="card">
+            <p>Birim testte test ettiğimiz sınıf <strong>Başrol Oyuncusu</strong>'dur. İhtiyaç duyduğu diğer sınıflar (veritabanı repoları, mapper'lar vb.) ise bizim talimatlarımızla hareket eden <strong>Figüran Kuklalar</strong>'dır.</p>
+
+            <div class="grid-3">
+                <div style="background: #11141a; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--purple); margin-top: 0;">@Mock</h3>
+                    <p style="font-size: 0.9rem;">Sahte figüran nesnedir. Veritabanına gitmez. İçi boştur. Ne emredersek onu döner.</p>
+                    <code>@Mock AccountRepository repo;</code>
+                </div>
+                <div style="background: #11141a; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--primary); margin-top: 0;">@InjectMocks</h3>
+                    <p style="font-size: 0.9rem;">Gerçekten test ettiğimiz başroldür. Mockito, yukarıdaki tüm kuklaları bu servise enjekte eder.</p>
+                    <code>@InjectMocks TransferService service;</code>
+                </div>
+                <div style="background: #11141a; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--success); margin-top: 0;">when().thenReturn()</h3>
+                    <p style="font-size: 0.9rem;">Kuklaya rol vermektir: "Sana şu IBAN sorulduğunda şu hesabı ver."</p>
+                    <code>when(repo.find(...)).thenReturn(...)</code>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div style="background: #11141a; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--warning); margin-top: 0;">assertThrows(...)</h3>
+                    <p style="font-size: 0.9rem;"><strong>Bomba İmha Uzmanı:</strong> Metodun kontrollü olarak hata fırlatmasını bekler. Hata fırlatılmazsa test başarısız olur.</p>
+                    <code>assertThrows(MyException.class, () -> service.run());</code>
+                </div>
+                <div style="background: #11141a; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--cyan); margin-top: 0;">verify(...) & never()</h3>
+                    <p style="font-size: 0.9rem;"><strong>Müfettiş:</strong> "Sen bu metodu tam 1 kez çağırdın mı?" veya "Hata çıktığı için veritabanına kaydetme metoduna ASLA gitmedin değil mi?" teftişidir.</p>
+                    <code>verify(repo, never()).save(any());</code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BÖLÜM 3: 7 TEST SENARYOSU -->
+    <section>
+        <h2>3. Yazdığımız 7 Test Senaryosunun Derinlemesine Analizi</h2>
+        <p>Projemizde <code>TransferService</code> sınıfımız için sırayla geliştirdiğimiz 7 birim testinin mimari gerekçeleri:</p>
+
+        <!-- SENARYO 1 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #fff;">1. Happy Path (Başarılı Para Transferi)</h3>
+                <span class="tag-success">✓ 1.09 saniye</span>
+            </div>
+            <p><strong>Metot Adı:</strong> <code>transfer_whenValidRequest_shouldCompleteSuccessfully()</code></p>
+            <p><strong>Ne Yaptık?</strong> İki hesap tanımladık (<code>TR111</code>: 500 TL, <code>TR222</code>: 500 TL). 100 TL transfer isteği gönderdik. Kilit sırasına göre repo mock'larını hazırladık.</p>
+<pre><code><span class="cm">// THEN: Bakiyeler kuruşu kuruşuna denetlenir</span>
+<span class="cls">assertEquals</span>(<span class="num">0</span>, <span class="kw">new</span> <span class="cls">BigDecimal</span>(<span class="str">"400.00"</span>).compareTo(sender.getBalance()));
+<span class="cls">assertEquals</span>(<span class="num">0</span>, <span class="kw">new</span> <span class="cls">BigDecimal</span>(<span class="str">"600.00"</span>).compareTo(receiver.getBalance()));
+
+<span class="cm">// THEN: Veritabanına kayıt işlemi 1 kez tetiklenmeli</span>
+<span class="cls">verify</span>(transactionRepository, times(<span class="num">1</span>)).save(any(<span class="cls">Transaction</span>.<span class="kw">class</span>));
+<span class="cls">verify</span>(transferMapper, times(<span class="num">1</span>)).toResponse(any(<span class="cls">Transaction</span>.<span class="kw">class</span>));</code></pre>
+            <p><strong>Kritik Mimari Kazanım:</strong> Deadlock önleyici <code>"TR111".compareTo("TR222") < 0</code> mantığı gereği önce ilk hesabın, sonra ikinci hesabın kilitlendiğini ve bakiyelerin doğru hesaplandığını kanıtladık.</p>
+        </div>
+
+        <!-- SENARYO 2 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #fff;">2. Idempotency Kalkanı (Mükerrer İstek Koruması)</h3>
+                <span class="tag-success">✓ Passed</span>
+            </div>
+            <p><strong>Metot Adı:</strong> <code>transfer_whenIdempotencyKeyIsPresent_shouldReturnExistingTransfer()</code></p>
+            <p><strong>Ne Yaptık?</strong> Ağ koptuğunda veya butona çift basıldığında aynı <code>idempotencyKey</code> geldiğinde servisin veritabanındaki eski işlemi bulmasını sağladık (<code>Optional.of(existingTx)</code>).</p>
+<pre><code><span class="cm">// Mükerrer istekte veritabanı kilitleri ve kaydetme ASLA çalışmamalı:</span>
+<span class="cls">verify</span>(accountRepository, never()).findByAccountNumberWithLock(any());
+<span class="cls">verify</span>(transactionRepository, never()).save(any());
+<span class="cls">verify</span>(transferMapper, times(<span class="num">1</span>)).toResponse(existingTx);</code></pre>
+            <p><strong>Kritik Mimari Kazanım:</strong> Sistemin mükerrer para çekmesini engelledik ve gereksiz veritabanı kilit maliyetini sıfıra indirdik.</p>
+        </div>
+
+        <!-- SENARYO 3 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #fff;">3. Self-Transfer Kalkanı (Kendine Transfer Engeli)</h3>
+                <span class="tag-success">✓ Passed</span>
+            </div>
+            <p><strong>Metot Adı:</strong> <code>transfer_whenSenderAndReceiverSame_shouldThrowSelfTransferException()</code></p>
+            <p><strong>Ne Yaptık?</strong> Hem gönderen hem alıcı IBAN'ı aynı (<code>"TR111"</code>) verildiğinde servisin derhal durmasını test ettik.</p>
+<pre><code><span class="cm">// assertThrows bombayı kucağında yakalar</span>
+<span class="cls">assertThrows</span>(<span class="cls">SelfTransferException</span>.<span class="kw">class</span>, () -> transferService.transfer(request, idempotencyKey));
+
+<span class="cm">// Metot hemen kesildiği için veritabanına HİÇ dokunulmaz</span>
+<span class="cls">verify</span>(accountRepository, never()).findByAccountNumberWithLock(any());
+<span class="cls">verify</span>(transactionRepository, never()).save(any());</code></pre>
+            <p><strong>Kritik Mimari Kazanım:</strong> Bellek içi kontrolün gücü. Servis repo aramasına dahi gitmeden isteği anında reddeder.</p>
+        </div>
+
+        <!-- SENARYO 4 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #fff;">4. Yetersiz Bakiye Koruması</h3>
+                <span class="tag-success">✓ Passed</span>
+            </div>
+            <p><strong>Metot Adı:</strong> <code>transfer_whenInsufficientBalance_shouldThrowInsufficientBalanceException()</code></p>
+            <p><strong>Ne Yaptık?</strong> Gönderen hesabın bakiyesini <code>50 TL</code> yaptık ama <code>100 TL</code> transfer edilmesini istedik.</p>
+<pre><code><span class="cm">// Bakiye yetersizse hata fırlatılır</span>
+<span class="cls">assertThrows</span>(<span class="cls">InsufficientBalanceException</span>.<span class="kw">class</span>, () -> transferService.transfer(request, idempotencyKey));
+
+<span class="cm">// DİKKAT: Hesaplar kilitlenir (bakiyeyi öğrenmek için) ama ASLA save yapılmaz!</span>
+<span class="cls">verify</span>(transactionRepository, never()).save(any());</code></pre>
+            <p><strong>Kritik Mimari Kazanım:</strong> Servisin bakiyeyi kontrol edebilmek için önce hesapları kilitlemek zorunda olduğunu, ancak bakiye yetmeyince işlemi kaydedemeden rollback yaptığını doğruladık.</p>
+        </div>
+
+        <!-- SENARYO 5 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #fff;">5. Hesap Bulunamadı & UnnecessaryStubbing Dersi</h3>
+                <span class="tag-success">✓ Passed</span>
+            </div>
+            <p><strong>Metot Adı:</strong> <code>transfer_whenAccountNotFound_shouldThrowAccountNotFoundException()</code></p>
+            <p><strong>Ne Yaptık?</strong> Gönderen hesap için repoya <code>Optional.empty()</code> dedirttik.</p>
+<pre><code><span class="cm">// Sadece 1. hesabı mockladık!</span>
+when(accountRepository.findByAccountNumberWithLock(senderIban)).thenReturn(<span class="cls">Optional</span>.empty());
+
+<span class="cls">assertThrows</span>(<span class="cls">AccountNotFoundException</span>.<span class="kw">class</span>, () -> transferService.transfer(request, idempotencyKey));
+<span class="cls">verify</span>(transactionRepository, never()).save(any());</code></pre>
+            <p><strong>Büyük Tecrübe (Fail-Fast):</strong> 2. hesabı (<code>receiverIban</code>) da mocklamaya çalıştığımızda Mockito <code>UnnecessaryStubbingException</code> fırlattı! Çünkü kod 1. hesapta patlayıp derhal metottan çıktığı için 2. hesaba hiç ulaşamadı. Bu da bize gereksiz mock yazmamayı öğretti.</p>
+        </div>
+
+        <!-- SENARYO 6 & 7 -->
+        <div class="grid-2">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0; color: #fff;">6. İnaktif Hesap Kalkanı</h3>
+                    <span class="tag-success">✓ Passed</span>
+                </div>
+                <p><strong>Metot:</strong> <code>transfer_whenAccountIsInactive_shouldThrowAccountInactiveException()</code></p>
+                <p>Hesaplardan birini <code>AccountStatus.SUSPENDED</code>, diğerini <code>CLOSED</code> yaptık. Servisin <code>AccountInactiveException</code> fırlattığını ve transferi kestiğini doğruladık.</p>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0; color: #fff;">7. Döviz Uyuşmazlığı Kalkanı</h3>
+                    <span class="tag-success">✓ Passed</span>
+                </div>
+                <p><strong>Metot:</strong> <code>transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException()</code></p>
+                <p>Göndereni <code>USD</code>, alıcıyı <code>EUR</code> yaptık. Çapraz kur motoru devrede olmadığı için sistemin <code>CurrencyMismatchException</code> ile transferi anında engellediğini kanıtladık.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- BÖLÜM 4: ALTIN PÜF NOKTALARI -->
+    <section>
+        <h2>4. Profesyonel Birim Testlerinde 5 Altın Püf Noktası</h2>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">Püf Noktası</th>
+                        <th style="width: 36%;">Hatalı / Tehlikeli Yaklaşım ❌</th>
+                        <th style="width: 36%;">Sektör Standardı Yaklaşım ✅</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>1. BigDecimal Eşitliği</strong></td>
+                        <td>
+                            <code>assertEquals(new BigDecimal("400.0"), actual)</code><br>
+                            <small class="tag-danger">Scale (ölçek) farkı yüzünden test patlar!</small>
+                        </td>
+                        <td>
+                            <code>assertEquals(0, new BigDecimal("400.00").compareTo(actual))</code><br>
+                            <small class="tag-success">Sadece matematiksel değere bakar.</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>2. Hata Testinde Çağrı Yeri</strong></td>
+                        <td>
+                            <code>TransferResponse res = service.transfer(...)</code><br>
+                            <code>assertThrows(...)</code><br>
+                            <small class="tag-danger">Metot dışarıda patlar, assert'e gelemez!</small>
+                        </td>
+                        <td>
+                            <code>assertThrows(MyEx.class, () -> service.transfer(...))</code><br>
+                            <small class="tag-success">Lambda içinde güvenle yakalanır.</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>3. Unnecessary Stubbing</strong></td>
+                        <td>
+                            Fail-fast olan kodda patlama noktasından sonraki repoları mock'lamak.<br>
+                            <small class="tag-danger">UnnecessaryStubbingException fırlatır.</small>
+                        </td>
+                        <td>
+                            Sadece kodun gerçekten dokunduğu bağımlılıklara <code>when(...)</code> tanımlamak.<br>
+                            <small class="tag-success">Temiz ve yalın mock kuralları.</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>4. Savunmacı Teftiş (never)</strong></td>
+                        <td>
+                            Sadece exception fırlatıldığını kontrol edip testi bitirmek.<br>
+                            <small class="tag-warning">Veritabanına gizlice kayıt atılmış olabilir!</small>
+                        </td>
+                        <td>
+                            <code>verify(txRepo, never()).save(any())</code><br>
+                            <small class="tag-success">Veritabanına yazılmadığını garanti eder.</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>5. İsimlendirme Standardı</strong></td>
+                        <td>
+                            <code>testTransfer()</code><br>
+                            <code>test1()</code><br>
+                            <small class="tag-danger">Test patladığında logdan hiçbir şey anlaşılmaz.</small>
+                        </td>
+                        <td>
+                            <code>transfer_whenBalanceLow_shouldThrowException()</code><br>
+                            <small class="tag-success">Method_Condition_ExpectedBehavior.</small>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <footer>
+        <p><strong>Core Banking Ledger</strong> &bull; Üretim Seviyesi Mockito Birim Test Dokümantasyonu &bull; 2026</p>
+    </footer>
+</div>
+
+</body>
+</html>
