@@ -1,5 +1,7 @@
 # 🏦 High-Integrity Core Banking Ledger & Fund Transfer Engine
 
+> 🇹🇷 **[Türkçe Dokümantasyon için buraya tıklayın (README-tr.md)](./README-tr.md)**
+
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
@@ -10,78 +12,82 @@
 
 ---
 
-## 📖 Genel Bakış ve Problem Tanımı
+## 📖 Executive Summary & Problem Statement
 
-Geleneksel web uygulamalarında bakiye yönetimi genellikle `accounts.balance = accounts.balance - 100` gibi doğrudan veritabanı alanı güncelleme mantığı üzerine kurulur. Ancak kurumsal bankacılık ve finansal defter (ledger) sistemlerinde bu yaklaşım kabul edilemez riskler barındırır:
+In conventional CRUD applications, account balance management is frequently handled via naive in-place database updates such as `accounts.balance = accounts.balance - 100`. In enterprise banking, fintech, and distributed ledger systems, this approach is catastrophic due to four core architectural pitfalls:
 
-1. **İzlenemezlik (Audit Failure):** Paranın nereden geldiği, nereye gittiği ve hangi atomik işlemle çıktığı geriye dönük matematiksel olarak ispatlanamaz.
-2. **Yarış Durumu ve Çift Harcama (Race Conditions & Double Spending):** Birden fazla kanal (ATM, POS, Mobil Bankacılık) aynı anda aynı bakiyeyi okuyup harcama yapmaya çalışırsa bakiye tutarsızlaşır veya negatife düşer.
-3. **Karşılıklı Kilitlenme (Deadlock):** A kullanıcısı B'ye para gönderirken (A kilitlenip B'yi bekler), eşzamanlı olarak B kullanıcısı A'ya para gönderirse (B kilitlenip A'yı bekler) sistem kilitlenir ve işlem havuzu tükenir.
-4. **Ağ Güvensizliği ve Mükerrer İstekler (Network Flakiness):** İstemcinin isteği zaman aşımına uğrayıp yeniden denendiğinde (retry mekanizması) aynı işlem mükerrer çalışarak hesabın birden çok kez borçlandırılmasına yol açabilir.
+1. **Audit Trail Failure:** Naive balance overwrites fail to record where funds originated, where they were routed, and under which atomic action. Proving mathematical balance consistency over time is impossible.
+2. **Race Conditions & Double Spending:** When multiple channels (ATMs, POS terminals, mobile apps) execute concurrent withdrawals against the same account, uncommitted balance snapshots lead to dirty reads and unauthorized overdrafts.
+3. **Deadlocks in Bilateral Transfers:** When User A sends money to User B (locking A and waiting for B) while User B concurrently sends money to User A (locking B and waiting for A), a database **Deadlock** ensues, exhausting connection pools.
+4. **Network Flakiness & Duplicate Executions:** Transient network timeouts prompt client retries. Without an idempotency barrier, retried requests re-execute the transfer, charging the client multiple times.
 
-**`core-banking-ledger`**, bu kritik finansal problemleri çözmek üzere inşa edilmiş; **Çift Taraflı Muhasebe (Double-Entry Bookkeeping)** prensiplerini işleten, **Ağ tekrarlarına karşı Idempotent** çalışan, **Deadlock-Free Lock Ordering (Sıralı Kilit)** mimarisiyle yüksek eşzamanlılık (concurrency) güvencesi sunan ve **değişmez (immutable/append-only)** defter kayıtları tutan yeni nesil bir çekirdek bankacılık motorudur.
+**`core-banking-ledger`** is an enterprise-grade core banking engine designed to eliminate these vulnerabilities. It enforces **Double-Entry Bookkeeping** ($\sum \text{DEBIT} = \sum \text{CREDIT}$), provides **Client-Side Idempotency**, implements **Deadlock-Free Lock Ordering (Lexicographical Natural Sorting)**, maintains **Append-Only Immutable Ledger Entries**, and preserves **Banker's Precision** through strict database-level constraints.
 
 ---
 
-## 🏛️ Temel Mimari Prensipler
+## 🏛️ Core Architectural Pillars
 
 ```
                                   ╔══════════════════════════════╗
-                                  ║    İstemci Transfer İsteği   ║
+                                  ║    Client Transfer Request   ║
                                   ╚══════════════╦═══════════════╝
                                                  ▼
                ┌──────────────────────────────────────────────────────────────────┐
-               │ 🛡️ 1. GÜVENLİK KAPISI: Idempotency Kalkanı                       │
-               │    (Aynı Idempotency-Key ile mükerrer işlem anında önlenir)      │
+               │ 🛡️ GATE 1: Idempotency Verification Shield                       │
+               │    (Detect duplicate requests; return cached receipt instantly)  │
                └─────────────────────────────────┬────────────────────────────────┘
                                                  ▼
                ┌──────────────────────────────────────────────────────────────────┐
-               │ 🔍 2. GÜVENLİK KAPISI: Mantıksal Validasyonlar                  │
-               │    (Self-Transfer, Para Birimi Eşleşmesi, Hesap Statü Kontrolü) │
+               │ 🔍 GATE 2: Domain Invariant Validations                          │
+               │    (Self-Transfer check, Currency parity, Account active status) │
                └─────────────────────────────────┬────────────────────────────────┘
                                                  ▼
                ┌──────────────────────────────────────────────────────────────────┐
-               │ 🔒 3. GÜVENLİK KAPISI: Deadlock-Free Lock Ordering               │
-               │    (min(IBAN_A, IBAN_B) sıralamasıyla PESSIMISTIC_WRITE kilidi)  │
+               │ 🔒 GATE 3: Deadlock-Free Deterministic Lock Ordering             │
+               │    (Acquire PESSIMISTIC_WRITE locks via min(IBAN_A, IBAN_B))    │
                └─────────────────────────────────┬────────────────────────────────┘
                                                  ▼
                ┌──────────────────────────────────────────────────────────────────┐
-               │ 💰 4. GÜVENLİK KAPISI: Bakiye Yeterlilik Kontrolü                │
-               │    (Kilitli ve güncel satırdan bakiye doğrulaması)               │
+               │ 💰 GATE 4: Balance Solvency Verification                         │
+               │    (Ensure sender balance >= transfer amount on locked row)      │
                └─────────────────────────────────┬────────────────────────────────┘
                                                  ▼
                ┌──────────────────────────────────────────────────────────────────┐
-               │ ⚖️ 5. ÇİFT TARAFLI DEFTER KAYDI & BAKİYE GÜNCELLEMESİ            │
-               │    (1 Atomik TX: 1 DEBIT + 1 CREDIT -> ∑ DEBIT = ∑ CREDIT)       │
+               │ ⚖️ GATE 5: Atomic Double-Entry Ledger Posting & Mutation         │
+               │    (1 Transaction: 1 DEBIT + 1 CREDIT -> ∑ DEBIT = ∑ CREDIT)     │
                └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. Çift Taraflı Muhasebe (Double-Entry Bookkeeping)
-Sistemde bakiye "büyüyle" yaratılmaz veya silinmez. Dışarıdan para yatırıldığında dahi işlem **Sistem Kasa Hesabı (System Transit/Vault Account)** ile müşteri hesabı arasında yürütülür.
-* Gönderen / Kasa Hesabı: **`DEBIT` (Borç)**
-* Alıcı / Müşteri Hesabı: **`CREDIT` (Alacak)**
-* Matematiksel Finansal Denge: $\sum \text{DEBIT} = \sum \text{CREDIT}$
+### 1. Double-Entry Bookkeeping
+Money is never created or destroyed out of thin air. Even external cash deposits are routed through an internal **System Transit / Bank Vault Account** (`TR000000000000000000000001`):
+* Originating / Vault Account: **`DEBIT`**
+* Beneficiary / Customer Account: **`CREDIT`**
+* Strict Mathematical Invariant: $\sum \text{DEBIT} = \sum \text{CREDIT}$
 
-### 2. Deadlock Önleyici Sıralı Kilitleme (Lock Ordering)
-İki hesabın karşılıklı transferlerinde kilitlenme riskini (`Deadlock`) sıfırlamak için kilit sırası gönderen/alıcı rolüne göre değil; hesap numaralarının **doğal alfabetik sırasına (`Natural Ordering`)** göre belirlenir:
+### 2. Deadlock-Free Lock Ordering (Lexicographical Sorting)
+To guarantee that concurrent cross-transfers between two accounts never trigger a database deadlock, account locks are acquired strictly in **lexicographical natural order** rather than sender/receiver order:
 ```java
 boolean isSenderFirst = senderAccountNumber.compareTo(receiverAccountNumber) < 0;
 String firstLock  = isSenderFirst ? senderAccountNumber : receiverAccountNumber;
 String secondLock = isSenderFirst ? receiverAccountNumber : senderAccountNumber;
+
+// Locks are acquired in identical order across all threads
+Account firstAccount  = accountRepository.findByAccountNumberWithLock(firstLock)...;
+Account secondAccount = accountRepository.findByAccountNumberWithLock(secondLock)...;
 ```
 
-### 3. İstemci Düzeyinde Idempotency Kalkanı
-Her finansal işlem için HTTP Header'ında benzersiz bir `Idempotency-Key` (UUID) zorunludur. İşlem başlamadan önce veritabanı kontrol edilir; mükerrer bir istek gelirse kilit alma ve bakiye güncelleme adımları atlanarak ilk başarılı işlemin cevabı anında dönülür.
+### 3. Client-Side Idempotency Shield
+Clients must supply a unique `Idempotency-Key` (UUID) with each financial request. Before any lock acquisition or balance check, the database is queried. If the transaction has already completed, the transfer engine short-circuits immediately, returning the existing receipt without mutating account balances or acquiring database locks.
 
-### 4. Değişmez Defter Kayıtları (Immutable / Append-Only)
-`LedgerEntry` tablosuna yazılan hiçbir finansal satır güncellenemez veya silinemez (`updatable = false`). Hatalı işlemler ancak ters yönde yeni bir düzeltme kaydıyla dengelenebilir.
+### 4. Append-Only Immutable Ledger Entries
+All historical movements written to `ledger_entries` are permanent and immutable (`updatable = false`). Transaction corrections or chargebacks are performed strictly via new compensatory debit/credit entries, preserving complete forensic auditability.
 
-### 5. Finansal Sayısal Bütünlük (Banker's Precision)
-Tüm parasal değerler `BigDecimal` ve `NUMERIC(19, 4)` hassasiyetinde tutulur. Veritabanı seviyesinde tanımlanan `@CheckConstraint` kuralları ile negatif bakiye (`balance >= 0`) ve geçersiz işlem tutarları (`amount > 0`) fiziksel olarak engellenir.
+### 5. High-Precision Numerical Integrity (Banker's Precision)
+All monetary fields utilize Java `BigDecimal` and PostgreSQL `NUMERIC(19, 4)` to avoid IEEE 754 floating-point inaccuracies. Database `@CheckConstraint` rules guarantee that account balances can never drop below zero (`balance >= 0`) and transfer amounts are strictly positive (`amount > 0`).
 
 ---
 
-## 📊 Veritabanı ve Varlık-İlişki Mimarisi (Entity-Relationship)
+## 📊 Database & Entity-Relationship Architecture
 
 ```mermaid
 erDiagram
@@ -91,7 +97,7 @@ erDiagram
 
     CUSTOMERS {
         bigint id PK "IDENTITY, Generated"
-        varchar identity_number UK "TCKN / Vergi No, NOT NULL"
+        varchar identity_number UK "National ID / Tax No, NOT NULL"
         varchar first_name "NOT NULL"
         varchar last_name "NOT NULL"
         varchar email UK "NOT NULL"
@@ -102,7 +108,7 @@ erDiagram
     ACCOUNTS {
         bigint id PK "IDENTITY, Generated"
         bigint customer_id FK "NOT NULL -> customers.id"
-        varchar account_number UK "IBAN / Hesap No, NOT NULL, updatable=false"
+        varchar account_number UK "IBAN, NOT NULL, updatable=false"
         bigint version "Optimistic Locking (@Version)"
         varchar currency "Enum: TRY, USD, EUR, NOT NULL, updatable=false"
         numeric balance "precision 19, scale 4, NOT NULL, CHECK(balance >= 0)"
@@ -115,10 +121,10 @@ erDiagram
     TRANSACTIONS {
         uuid id PK "UUID, Generated"
         varchar idempotency_key UK "NOT NULL"
-        varchar referenceNumber UK "TXN/DEP Formatında Dekont No"
+        varchar referenceNumber UK "TXN/DEP Receipt ID, NOT NULL"
         varchar type "Enum: INTERNAL_TRANSFER, DEPOSIT, WITHDRAW, NOT NULL"
         varchar status "Enum: PENDING, COMPLETED, FAILED, NOT NULL"
-        varchar description "Açıklama Metni"
+        varchar description "Transaction Remarks"
         numeric amount "precision 19, scale 4, NOT NULL, CHECK(amount > 0)"
         varchar currency "Enum: TRY, USD, EUR, NOT NULL"
         timestamptz created_at "Auto Timestamp, updatable=false"
@@ -134,46 +140,46 @@ erDiagram
     }
 ```
 
-### Fiziksel Tablo Özeti
+### Physical Schema Data Dictionary
 
-| Tablo Adı | Birincil Anahtar | Kritik Kısıtlar (Constraints) | Açıklama |
+| Table Name | Primary Key | Key Constraints & Invariants | Description |
 | :--- | :--- | :--- | :--- |
-| `customers` | `BIGINT (IDENTITY)` | `identity_number UNIQUE`, `email UNIQUE` | Müşteri kimlik ve profil verileri |
-| `accounts` | `BIGINT (IDENTITY)` | `account_number UNIQUE`, `CHECK (balance >= 0)`, `@Version` | Vadesiz/Vadeli banka hesapları ve bakiye |
-| `transactions` | `UUID` | `idempotency_key UNIQUE`, `reference_number UNIQUE` | Finansal operasyon üst bilgisi ve Idempotency takibi |
-| `ledger_entries` | `BIGINT (IDENTITY)` | `updatable = false`, `CHECK (amount > 0)` | Çift taraflı borç (`DEBIT`) ve alacak (`CREDIT`) defteri |
+| `customers` | `BIGINT (IDENTITY)` | `identity_number UNIQUE`, `email UNIQUE` | Customer identification and profile records |
+| `accounts` | `BIGINT (IDENTITY)` | `account_number UNIQUE`, `CHECK (balance >= 0)`, `@Version` | Deposit accounts, current balance, and optimistic lock version |
+| `transactions` | `UUID` | `idempotency_key UNIQUE`, `reference_number UNIQUE` | Root financial transaction metadata and idempotency tracking |
+| `ledger_entries` | `BIGINT (IDENTITY)` | `updatable = false`, `CHECK (amount > 0)` | Immutable double-entry line items (`DEBIT` & `CREDIT`) |
 
 ---
 
-## 🛠️ Teknoloji Yığını
+## 🛠️ Technology Stack
 
-| Katman / Kütüphane | Versiyon / Teknoloji | Seçim Gerekçesi ve Rolü |
+| Layer / Component | Version / Technology | Architectural Rationale & Role |
 | :--- | :--- | :--- |
-| **Dil** | Java 21 LTS | Pattern Matching, Records, Thread-safe concurrent pratikleri |
-| **Framework** | Spring Boot 4.1.2 | Kurumsal servis altyapısı, Declarative Transaction Management |
-| **Veri Katmanı** | Spring Data JPA / Hibernate | ORM yönetimi, Pessimistic & Optimistic Concurrency Controls |
-| **Veritabanı** | PostgreSQL 16 | ACID standartları, Row-Level Locking (`SELECT FOR UPDATE`), Strict Constraints |
-| **Konteynerizasyon** | Docker Compose | PostgreSQL veritabanını izole ve kalıcı bir ortamda ayağa kaldırma |
-| **Birim Testleri** | JUnit 5 & Mockito | 7 Güvenlik kapısı ve edge-case senaryolarının izole doğrulaması |
-| **Entegrasyon Testi** | Testcontainers | Gerçek PostgreSQL üzerinde yüksek eşzamanlılık (concurrency) testleri |
-| **Veri Göçü (Migration)** | Flyway (hazırlık) | Veritabanı şema versiyonlama ve DDL script yönetimi |
-| **Kod Üretimi** | Lombok | `@Getter`, `@Builder`, `@RequiredArgsConstructor` ile boilerplate minimizasyonu |
+| **Language** | Java 21 LTS | Pattern Matching, Sealed Records, Enhanced Concurrency semantics |
+| **Framework** | Spring Boot 4.1.2 | Enterprise web platform, declarative `@Transactional` management |
+| **Persistence** | Spring Data JPA / Hibernate | ORM mapping, Pessimistic (`PESSIMISTIC_WRITE`) & Optimistic Locking |
+| **Database** | PostgreSQL 16 | ACID-compliant RDBMS, row-level locks (`SELECT FOR UPDATE`), DDL constraints |
+| **Containerization**| Docker Compose | Reproducible, isolated, and persisted local PostgreSQL instance |
+| **Unit Testing** | JUnit 5 & Mockito | Fast, isolated test suite verifying all 7 security gates and edge cases |
+| **Integration Test**| Testcontainers | Concurrency verification on real containerized PostgreSQL instances |
+| **Schema Migration**| Flyway (ready) | Database schema versioning and DDL lifecycle control |
+| **Boilerplate Tool**| Project Lombok | Data classes, builders, slf4j logging annotations |
 
 ---
 
-## 📁 Proje Dizin Yapısı
+## 📁 Project Directory Structure
 
-Proje, katmanlı ve temiz mimari (Clean & Layered Architecture) prensiplerine göre yapılandırılmıştır:
+The project follows Clean & Layered Architecture standards:
 
 ```text
 core-banking-ledger/
-├── .mvn/                                # Maven wrapper dosyaları
+├── .mvn/                                # Maven wrapper configuration
 ├── src/
 │   ├── main/
 │   │   ├── java/com/akt/banking_v1/
-│   │   │   ├── BankingV1Application.java # Spring Boot giriş noktası
+│   │   │   ├── BankingV1Application.java # Spring Boot entry point
 │   │   │   ├── common/
-│   │   │   │   └── exception/           # Finansal domain istisna hiyerarşisi
+│   │   │   │   └── exception/           # Domain financial exception hierarchy
 │   │   │   │       ├── BankingException.java
 │   │   │   │       ├── InsufficientBalanceException.java
 │   │   │   │       ├── AccountNotFoundException.java
@@ -182,86 +188,88 @@ core-banking-ledger/
 │   │   │   │       ├── SelfTransferException.java
 │   │   │   │       └── CustomerAlreadyExistsException.java
 │   │   │   ├── config/
-│   │   │   │   └── DataInitializer.java # Sistem Müşterisi ve Kasa Hesabı başlangıç verisi
-│   │   │   ├── dto/                     # Jakarta Validation korumalı Record DTO'lar
+│   │   │   │   └── DataInitializer.java # Auto-seeds System Vault Customer & TRY Account
+│   │   │   ├── dto/                     # Jakarta Validation-guarded Record DTOs
 │   │   │   │   ├── TransferRequest.java / TransferResponse.java
 │   │   │   │   ├── CreateAccountRequest.java / AccountResponse.java
 │   │   │   │   ├── CreateCustomerRequest.java / CustomerResponse.java
 │   │   │   │   └── DepositRequest.java
-│   │   │   ├── enums/                   # Tip güvenli finansal durumlar
+│   │   │   ├── enums/                   # Type-safe financial domain states
 │   │   │   │   ├── Currency.java (TRY, USD, EUR)
 │   │   │   │   ├── AccountStatus.java (ACTIVE, SUSPENDED, CLOSED)
 │   │   │   │   ├── AccountType.java (CHECKING, SAVINGS)
 │   │   │   │   ├── TransactionType.java (INTERNAL_TRANSFER, DEPOSIT, WITHDRAW)
 │   │   │   │   ├── TransactionStatus.java (PENDING, COMPLETED, FAILED)
 │   │   │   │   └── EntryType.java (DEBIT, CREDIT)
-│   │   │   ├── mapper/                  # İzole ve test edilebilir DTO mappers
+│   │   │   ├── mapper/                  # Decoupled entity-to-DTO converters
 │   │   │   │   ├── TransferMapper.java
 │   │   │   │   ├── AccountMapper.java
 │   │   │   │   └── CustomerMapper.java
-│   │   │   ├── model/                   # JPA Entity modelleri (Double-Entry domain)
+│   │   │   ├── model/                   # JPA Entities (Double-entry domain)
 │   │   │   │   ├── Customer.java
 │   │   │   │   ├── Account.java
 │   │   │   │   ├── Transaction.java
 │   │   │   │   └── LedgerEntry.java
-│   │   │   ├── repository/              # Spring Data JPA & Concurrency Lock Queries
+│   │   │   ├── repository/              # Spring Data JPA repositories with lock queries
 │   │   │   │   ├── CustomerRepository.java
 │   │   │   │   ├── AccountRepository.java (findByAccountNumberWithLock)
 │   │   │   │   ├── TransactionRepository.java (findByIdempotencyKey)
 │   │   │   │   └── LedgerEntryRepository.java (findByAccountIdAndDateRange)
-│   │   │   └── service/                 # Finansal iş mantığı motorları
+│   │   │   └── service/                 # Core financial engines
 │   │   │       ├── TransferService.java # Transfer, Deposit, Lock Ordering, Idempotency
-│   │   │       ├── AccountService.java  # Hesap açılışı, 26 haneli TR IBAN üretimi
-│   │   │       └── CustomerService.java # Müşteri onboarding ve tekillik kontrolleri
+│   │   │       ├── AccountService.java  # Account onboarding, 26-char TR IBAN generator
+│   │   │       └── CustomerService.java # Customer onboarding & uniqueness verification
 │   │   └── resources/
-│   │       └── application.properties   # Veritabanı ve Hibernate ayarları
+│   │       └── application.properties   # Connection pool, Hibernate, and DDL config
 │   └── test/
 │       └── java/com/akt/banking_v1/
 │           ├── BankingV1ApplicationTests.java
 │           ├── TestcontainersConfiguration.java
 │           └── service/
-│               └── TransferServiceTest.java # 8 Kapsamlı Mockito Birim Test Senaryosu
-├── docker-compose.yml                   # PostgreSQL 16 servis tanımı
-├── pom.xml                              # Maven bağımlılıkları ve konfigürasyonlar
-├── core_banking_case_study_specification.md # Proje teknik şartnamesi
-├── DATABASE_SCHEMA.md                   # Veritabanı ve DDL dokümantasyonu
-├── progress.md                          # Proje iterasyon ve tamamlanma günlüğü
-└── *.html                               # İnteraktif görsel mühendislik rehberleri
+│               └── TransferServiceTest.java # 8 Exhaustive Mockito Unit Test Scenarios
+├── docker-compose.yml                   # PostgreSQL 16 container definition
+├── pom.xml                              # Maven build descriptors and plugins
+├── core_banking_case_study_specification.md # Engineering requirements & specification
+├── DATABASE_SCHEMA.md                   # Complete database DDL & architecture specs
+├── progress.md                          # Iteration diary & completion status
+├── README.md                            # Primary English documentation (this file)
+├── README-tr.md                         # Turkish documentation
+└── *.html                               # Interactive visual technical study guides
 ```
 
 ---
 
-## ⚡ Temel Servisler ve İş Mantığı Akışı
+## ⚡ Core Business Workflows
 
-### 1. `TransferService` (Transfer & Para Girişi Motoru)
+### 1. `TransferService` (The Core Transfer Engine)
 * **`transfer(TransferRequest, idempotencyKey)`:**
-  1. **Idempotency Denetimi:** `transactionRepository.findByIdempotencyKey(key)` ile sorgulanır. Kayıt varsa işlem tekrarlanmaz, önbellekteki işlem `TransferResponse` olarak dönülür.
-  2. **Self-Transfer Koruması:** Gönderen ve alıcı hesap aynı olamaz.
-  3. **Deadlock-Free Lock Ordering:** Hesap numaraları karşılaştırılarak (`compareTo`) küçük olan hesap önce, büyük olan sonra `PESSIMISTIC_WRITE` (`SELECT ... FOR UPDATE`) kilidiyle okunur.
-  4. **Durum & Döviz Kontrolleri:** Her iki hesabın `ACTIVE` olduğu ve aynı para birimine sahip olduğu doğrulanır.
-  5. **Bakiye Kontrolü:** Gönderen hesap bakiyesinin işlem tutarını karşıladığı teftiş edilir.
-  6. **Bakiye Güncellemesi:** Gönderen bakiyesinden düşülür, alıcı bakiyesine eklenir.
-  7. **Çift Taraflı Defter Satırları:** 1 adet `Transaction` başlığı altında 1 adet `DEBIT` ve 1 adet `CREDIT` satırı atomik olarak kaydedilir.
-  8. **Dekont No Üretimi:** `TXN-YYYYMMDD-UUID8` formatında tekil referans numarası atanır.
+  1. **Idempotency Check:** Checks `transactionRepository.findByIdempotencyKey(key)`. If found, immediately returns the cached transaction response without acquiring row locks.
+  2. **Self-Transfer Prevention:** Validates that `senderAccountNumber != receiverAccountNumber`.
+  3. **Deadlock-Free Lock Ordering:** Evaluates lexicographical precedence (`sender.compareTo(receiver)`). Locks the smaller IBAN first using `@Lock(LockModeType.PESSIMISTIC_WRITE)` (`SELECT ... FOR UPDATE`), then the second IBAN.
+  4. **Account & Currency Validation:** Asserts both accounts are `ACTIVE` and operate in identical currencies.
+  5. **Balance Check:** Ensures `sender.balance >= request.amount`.
+  6. **Balance Mutation:** Atomically debits sender balance and credits receiver balance.
+  7. **Double-Entry Ledger Creation:** Emits a `Transaction` entity enclosing one `DEBIT` `LedgerEntry` and one `CREDIT` `LedgerEntry`.
+  8. **Receipt Generation:** Issues a standard financial reference ID: `TXN-YYYYMMDD-UUID8`.
 * **`deposit(DepositRequest, idempotencyKey)`:**
-  * Dışarıdan hesaba nakit yatırılması durumunda paranın kaynağı olarak **`DataInitializer.SYSTEM_TRY_ACCOUNT` (Kasa Hesabı)** kullanılır. Kasa borçlandırılır (`DEBIT`), müşteri hesabı alacaklandırılır (`CREDIT`).
-  * Dekont referans numarası `DEP-YYYYMMDD-UUID8` formatında üretilir.
+  * Uses the internal **`DataInitializer.SYSTEM_TRY_ACCOUNT` (Central Bank Vault Account)** as the funding source.
+  * Debits the vault account (`DEBIT`) and credits the customer account (`CREDIT`), maintaining $\sum \text{DEBIT} = \sum \text{CREDIT}$. Generates a `DEP-YYYYMMDD-UUID8` reference ID.
 
-### 2. `AccountService` (Hesap Açılışı ve IBAN Motoru)
-* **Otomatik IBAN Üretimi:** `ThreadLocalRandom` ile Türkiye bankacılık standartlarına uygun `TR` önekli 24 haneli rakam bloğu (`TR` + 24 hane = 26 karakter) üretilir.
-* **Collision Guard:** Üretilen IBAN'ın benzersiz olduğu `existsByAccountNumber` ile doğrulanır.
-* **Varsayılan Güvenlik:** Yeni açılan hesaplar daima `ACTIVE` statüde ve `0.0000` bakiye ile başlatılır.
+### 2. `AccountService` (Onboarding & IBAN Engine)
+* **Turkish IBAN Generation:** Uses `ThreadLocalRandom` to generate authentic 26-character Turkish IBANs (`TR` + 24 numeric digits).
+* **Collision Guard:** Verifies IBAN uniqueness via `existsByAccountNumber` before persisting.
+* **Safe Initialization:** Enforces initial balance of `0.0000` and `ACTIVE` status by default.
 
-### 3. `CustomerService` (Müşteri Onboarding)
-* TCKN/Vergi No ve e-posta adreslerinin tekilliği uygulama katmanında savunmacı kontrollerle (`existsByIdentityNumber`, `existsByEmail`) teftiş edilir.
+### 3. `CustomerService` (Customer Onboarding)
+* Guarantees identity number (TCKN/Tax ID) and email uniqueness through defensive pre-persistence checks (`existsByIdentityNumber`, `existsByEmail`).
 
 ---
 
-## 🧪 Test Stratejisi ve Doğrulama Disiplini
+## 🧪 Testing Discipline & Verification Suite
 
-Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcontainers** altyapısıyla garanti altına alınmıştır.
+Financial accuracy and defensive programming invariants are verified via **Mockito Unit Tests** and **Testcontainers**.
 
-### `TransferServiceTest` Kapsamı (8/8 Başarılı)
+### `TransferServiceTest` Suite (8/8 Passing)
 
 ```
 [INFO] Running com.akt.banking_v1.service.TransferServiceTest
@@ -269,51 +277,51 @@ Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcon
 [INFO] BUILD SUCCESS
 ```
 
-| # | Test Metodu | Test Edilen Senaryo | Doğrulama & Teftiş Mekanizması |
+| # | Test Scenario | Verified Invariant | Verification Mechanism |
 | :---: | :--- | :--- | :--- |
-| **1** | `transfer_whenValidRequest_shouldCompleteSuccessfully` | **Happy Path:** Standart iki hesap arası başarılı transfer | Doğal kilit sırası, kuruş hassasiyetli bakiye değişimi, `save` ve `toResponse` teftişi |
-| **2** | `transfer_whenIdempotencyKeyIsPresent_shouldReturnExistingTransfer` | **Idempotency Kalkanı:** Mükerrer istek yakalama | Sıfır DB kilitleme (`never().findByAccountNumberWithLock`), anında eski yanıt dönüşü |
-| **3** | `transfer_whenSenderAndReceiverSame_shouldThrowSelfTransferException` | **Self-Transfer Koruması:** Kendi kendine transfer engeli | Bellek içi hızlı fail, sıfır DB kilit ve sıfır transaction kaydı |
-| **4** | `transfer_whenInsufficientBalance_shouldThrowInsufficientBalanceException` | **Yetersiz Bakiye Kontrolü:** Kilit sonrası bakiye koruması | `never().save(Transaction)` ile veri tabanına yarım kayıt yazılmadığının kanıtlanması |
-| **5** | `transfer_whenAccountNotFound_shouldThrowAccountNotFoundException` | **Hesap Bulunamadı:** Erken çıkış (Fail-Fast) | `UnnecessaryStubbingException` uyumlu temiz mock yönetimi |
-| **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **İnaktif Hesap Güvenliği:** Askıya alınmış (`SUSPENDED`) veya kapalı hesap | Transferin bloke edilmesi ve istisna fırlatılması |
-| **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Döviz Uyuşmazlığı:** TRY ile USD/EUR arası transfer engeli | Farklı para birimlerinin kilit sonrası reddedilmesi |
-| **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Kasa Para Girişi (Deposit):** Sistem kasasından alacaklandırma | Kasa hesabına `DEBIT`, müşteriye `CREDIT`, `DEP-` referans numarası teftişi |
+| **1** | `transfer_whenValidRequest_shouldCompleteSuccessfully` | **Happy Path:** Successful bilateral transfer | Verifies lock ordering, cents-accurate balance mutation, transaction save, and receipt mapper |
+| **2** | `transfer_whenIdempotencyKeyIsPresent_shouldReturnExistingTransfer` | **Idempotency Shield:** Duplicate request mitigation | Bypasses all locks (`never().findByAccountNumberWithLock`), returns original receipt instantly |
+| **3** | `transfer_whenSenderAndReceiverSame_shouldThrowSelfTransferException` | **Self-Transfer Guard:** Same-account transfer blocker | Fast failure in memory; zero DB locks acquired and zero ledger records persisted |
+| **4** | `transfer_whenInsufficientBalance_shouldThrowInsufficientBalanceException` | **Solvency Guard:** Insufficient balance rejection | Verifies `never().save(Transaction)` to ensure zero dirty state persistence |
+| **5** | `transfer_whenAccountNotFound_shouldThrowAccountNotFoundException` | **Account Lookup Guard:** Missing account detection | Fail-fast validation with clean `UnnecessaryStubbingException` compliance |
+| **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **Account Status Guard:** `SUSPENDED` / `CLOSED` accounts | Blocks execution immediately when account status is not `ACTIVE` |
+| **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Currency Parity Guard:** Mixed currency prevention | Prohibits cross-currency transfers (e.g., TRY to USD/EUR) |
+| **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Vault Deposit:** System cash injection | Debits Central Vault, credits customer account, confirms `DEP-` receipt format |
 
 ---
 
-## 📚 İnteraktif Mühendislik Rehberleri
+## 📚 Interactive Visual Technical Guides
 
-Repozituvarda, projenin tasarım ve mimari kararlarını detaylandıran interaktif HTML görsel dokümanları bulunmaktadır:
+The repository includes comprehensive, interactive HTML study guides illustrating the engineering decisions behind this system:
 
-* 📄 **[`transfer_service_architecture_and_workflow_guide.html`](./transfer_service_architecture_and_workflow_guide.html):** 5 Güvenlik Kapısı, Deadlock-Free Lock Ordering, Kütüphaneci & Snapshot Dirty Checking analojisi.
-* 📄 **[`optimistic_vs_pessimistic_locking_guide.html`](./optimistic_vs_pessimistic_locking_guide.html):** Concurrency çatışma stratejileri, `@Version` mekanizması ve row-level `FOR UPDATE` karşılaştırması.
-* 📄 **[`repository_and_locking_guide.html`](./repository_and_locking_guide.html):** Spring Data JPA kilit anotasyonları, pessimistic write query'leri ve transactional sınırları.
-* 📄 **[`jpa_equals_and_hashcode_guide.html`](./jpa_equals_and_hashcode_guide.html):** Hibernate Proxy, Set güvenliği ve Business Key (`accountNumber`) tabanlı kimlik sözleşmesi.
-* 📄 **[`unit_testing_and_mockito_mastery_guide.html`](./unit_testing_and_mockito_mastery_guide.html):** Mockito birim test felsefesi, `verify` kontrolleri ve savunmacı test mimarisi.
+* 📄 **[`transfer_service_architecture_and_workflow_guide.html`](./transfer_service_architecture_and_workflow_guide.html):** The 5 Security Gates, Deadlock-Free Lock Ordering, and the Librarian & Snapshot Dirty Checking analogy.
+* 📄 **[`optimistic_vs_pessimistic_locking_guide.html`](./optimistic_vs_pessimistic_locking_guide.html):** Concurrency strategies, `@Version` mechanics vs. row-level `FOR UPDATE` queries.
+* 📄 **[`repository_and_locking_guide.html`](./repository_and_locking_guide.html):** Spring Data JPA lock modes, pessimistic locking, and transactional boundaries.
+* 📄 **[`jpa_equals_and_hashcode_guide.html`](./jpa_equals_and_hashcode_guide.html):** Hibernate Proxy safety, Set collection integrity, and Business Key (`accountNumber`) equality.
+* 📄 **[`unit_testing_and_mockito_mastery_guide.html`](./unit_testing_and_mockito_mastery_guide.html):** Mockito unit testing mastery, strict verification checks, and defensive assertions.
 
 ---
 
-## 🚀 Kurulum ve Çalıştırma Kılavuzu
+## 🚀 Getting Started & Execution Guide
 
-### Ön Gereksinimler
-* **Java:** JDK 21 LTS veya üzeri
-* **Maven:** 3.9+ (veya proje kök dizinindeki `./mvnw`)
-* **Docker & Docker Compose:** PostgreSQL veritabanı servisi için
+### Prerequisites
+* **Java:** JDK 21 LTS or higher
+* **Maven:** 3.9+ (or use the included `./mvnw`)
+* **Docker & Docker Compose:** For running the PostgreSQL instance
 
-### 1. Repoyu Klonlayın
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/AKeremT/core-banking-ledger.git
 cd core-banking-ledger
 ```
 
-### 2. Veritabanını Docker ile Ayağa Kaldırın
+### 2. Launch PostgreSQL via Docker Compose
 ```bash
 docker compose up -d
 ```
-> PostgreSQL servisi `localhost:5432` üzerinde, `core_banking_ledger` veritabanı adı, `akt` kullanıcı adı ve `akt` parolasıyla hazır hale gelecektir.
+> Starts a PostgreSQL 16 container accessible on `localhost:5432` with database `core_banking_ledger`, username `akt`, and password `akt`.
 
-### 3. Testleri Koşturun
+### 3. Run the Test Suite
 ```bash
 # Windows
 .\mvnw.cmd clean test
@@ -322,7 +330,7 @@ docker compose up -d
 ./mvnw clean test
 ```
 
-### 4. Uygulamayı Başlatın
+### 4. Start the Application
 ```bash
 # Windows
 .\mvnw.cmd spring-boot:run
@@ -330,39 +338,39 @@ docker compose up -d
 # Linux / macOS
 ./mvnw spring-boot:run
 ```
-> Uygulama ilk kez ayağa kalktığında `DataInitializer` devreye girerek **Sistem Müşterisi** ve 1 Milyar TL bakiyeli **Sistem Kasa Hesabını** (`TR000000000000000000000001`) otomatik olarak oluşturacaktır.
+> On boot, `DataInitializer` seeds the **System Customer** and the 1 Billion TRY **System Bank Vault Account** (`TR000000000000000000000001`) automatically.
 
 ---
 
-## 🗺️ Yol Haritası ve Gelecek Adımlar
+## 🗺️ Roadmap & Upcoming Milestones
 
-- [x] Case study teknik şartnamesi ve domain analizi (`Double-Entry Bookkeeping`).
-- [x] PostgreSQL 16 Docker Compose ortamının kurulması.
-- [x] JPA Entity'leri, enum'lar, `@Version` ve `@CheckConstraint` kuralları.
-- [x] Concurrency odaklı Repository katmanı (`@Lock(LockModeType.PESSIMISTIC_WRITE)`).
-- [x] Jakarta Bean Validation destekli Record DTO'lar ve istisna hiyerarşisi.
-- [x] Transfer motoru (`TransferService.transfer` ve `TransferService.deposit`).
-- [x] Otomatik TR IBAN motoru ile Müşteri ve Hesap servisleri (`AccountService`, `CustomerService`).
-- [x] Mockito ile 8 senaryolu kapsamlı birim test zırhı (`TransferServiceTest`).
-- [ ] **REST Controller & Global Exception Handling:** HTTP katmanının (`@RestController`, `@ControllerAdvice`) tamamlanması.
-- [ ] **Testcontainers Concurrency Stres Testi:** 100 eşzamanlı thread ile gerçek PostgreSQL üzerinde Race Condition ve Deadlock testi.
-- [ ] **Finansal Ekstre ve Analiz Motoru:** Java Stream API (`groupingBy`, `reduce`) ile hesap hareketlerinin raporlanması.
-- [ ] **Flyway Database Migration:** Şemanın otomatik versiyonlanması.
+- [x] Engineering case study specification and double-entry domain model design.
+- [x] PostgreSQL 16 Docker Compose environment setup.
+- [x] JPA Entities, enums, `@Version` optimistic locking, and `@CheckConstraint` rules.
+- [x] Concurrency-oriented repositories (`@Lock(LockModeType.PESSIMISTIC_WRITE)`).
+- [x] Jakarta Bean Validation Record DTOs and domain exception hierarchy.
+- [x] Core fund transfer engine (`TransferService.transfer` & `TransferService.deposit`).
+- [x] Collision-guarded Turkish IBAN generator, customer and account onboarding services.
+- [x] Exhaustive Mockito unit testing suite (`TransferServiceTest` - 8/8 passing).
+- [ ] **REST Controllers & Global Exception Handler:** `@RestController` and `@ControllerAdvice` presentation layer.
+- [ ] **Testcontainers Concurrency Stress Suite:** 100 concurrent threads testing race conditions & deadlock freedom on real PostgreSQL.
+- [ ] **Financial Statement & Analytics Engine:** Java Stream API aggregations (`groupingBy`, `reduce`) for account statements.
+- [ ] **Flyway Database Migration:** Automated versioned DDL scripts.
 
 ---
 
-## 📝 Commit ve Geliştirme Standartları
+## 📝 Commit & Development Standards
 
-Bu proje, [`developer_study_workflow_dsa_blueprint.md`](../developer_study_workflow_dsa_blueprint.md) yönergesinde belirtilen **Conventional Commits** standardına sıkı sıkıya bağlı kalınarak geliştirilmektedir:
+Development adheres strictly to the **Conventional Commits** specification defined in [`developer_study_workflow_dsa_blueprint.md`](../developer_study_workflow_dsa_blueprint.md):
 
 * `feat(transfer): implement deadlock-free lock ordering for transfer pipeline`
 * `test(transfer): add comprehensive mockito unit tests for transfer and deposit`
-* `docs(readme): add extensive documentation with architecture diagrams and workflows`
+* `docs(readme): add comprehensive project documentation with architecture diagrams and workflows`
 * `chore(db): configure postgresql 16 docker compose and datasource`
 
 ---
 
-## 👤 Geliştirici
+## 👤 Author
 
-* **Geliştirici:** Kerem ([@AKeremT](https://github.com/AKeremT))
-* **Çalışma Modeli:** AI-Assisted Socratic Mentorship & Dual-Track Engineering Discipline
+* **Author:** Kerem ([@AKeremT](https://github.com/AKeremT))
+* **Methodology:** AI-Assisted Socratic Mentorship & Dual-Track Engineering Discipline
