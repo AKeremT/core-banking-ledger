@@ -124,33 +124,40 @@
   - **Double-Spending ve Negatif Bakiye Koruması Testi (10 Thread):** 100 TL'lik hesaptan aynı anda 10x20 TL çekim talebinde tam 5 işlemin başarılı olduğu, 5 işlemin `InsufficientBalanceException` ile reddedildiği ve bakiyenin asla negatife düşmeyerek 0.00 TL'de kaldığı kanıtlandı.
   - `integration_testing_and_concurrency_guide.html`: Entegrasyon testlerinin anatomisi, Testcontainers mantığı ve concurrency analizi görselleştirildi.
   - `java_concurrency_mastery_roadmap.html`: Üst dizinde donanımdan Virtual Threads'e kadar uzanan kapsamlı Java Concurrency yol haritası dokümante edildi.
+- [x] **Ekstre ve Finansal Analiz Motoru (Java Stream API - 2 Kasım 2026):**
+  - `AccountStatementService`:
+    - Tarih aralıklı (`findByAccountIdAndDateRange`) tek sorgulu optimize defter satırları çekimi.
+    - Savunmacı tarih yönetimi: `startDate` ve `endDate` null ise otomatik son 30 gün varsayılanı (`ChronoUnit.DAYS`).
+    - Java Stream API ile dönem içi toplam giren (`CREDIT`) ve çıkan (`DEBIT`) tutarların kuruş hassasiyetinde toplanması (`filter`, `reduce`).
+    - İşlem türüne göre (`INTERNAL_TRANSFER`, `DEPOSIT`) harcama analitiği dökümü (`Collectors.groupingBy`, `Collectors.reducing`).
+    - `StatementItemResponse` ve `AccountStatementResponse` record DTO'ları ile kronolojik ekstre üretimi.
+    - Hareket olmayan dönemlerde hata fırlatmak yerine temiz boş ekstre dönülmesi (`items: []`, `totalCredit: 0.00`, `totalDebit: 0.00`).
+  - `AccountController`: `GET /api/v1/accounts/{accountNumber}/statement` REST endpoint'inin açılması.
 
 ---
 
-## 🎯 Sıradaki Adımlar (Projenin Tamamlanması İçin Kalanlar)
+## 🎯 Sıradaki Adımlar (Sonraki Oturumda Devam Edilecekler)
 
-README yol haritası ve sistem mimarisi doğrultusunda projenin üretime hazır (production-ready) hale gelmesi için kalan eksik modüller:
+Geliştirme yol haritamız doğrultusunda bir sonraki çalışma oturumunda ele alınacak maddeler:
 
-### 1. Ekstre ve Finansal Analiz Motoru (Java Stream API)
-- [ ] `AccountStatementService`: Belirli tarih aralığındaki `LedgerEntry` hareketlerinin çekilmesi.
-- [ ] Java Stream API (`groupingBy`, `filter`, `reduce`) pratikleri:
-  - Toplam giren (`CREDIT`) ve çıkan (`DEBIT`) tutarların kuruş hassasiyetinde hesaplanması.
-  - İşlem türüne göre (Deposit, Withdrawal, Transfer) harcama dökümü gruplaması (`Collectors.groupingBy`).
-  - Sayfalanmış (paginated) ve kronolojik sıralı ekstre DTO'sunun üretilmesi.
-- [ ] `AccountController` / `StatementController` üzerinden `GET /api/v1/accounts/{accountNumber}/statement` endpoint'i.
+### 1. Para Çekme (Withdrawal) Operasyonu
+- [ ] `WithdrawRequest` record DTO'sunun oluşturulması (`@NotBlank sourceAccountNumber`, `@NotNull @DecimalMin("0.01") amount`).
+- [ ] `TransferService.withdraw`:
+  - Idempotency denetimi (`findByIdempotencyKey`).
+  - Kasa ve Müşteri hesabı arasında Deadlock-Free Lock Ordering (alfabetik sıralı kilit).
+  - Yetersiz bakiye (`InsufficientBalanceException`), inaktif hesap ve para birimi kontrolleri.
+  - Çift taraflı muhasebe: Müşteri hesabı borçlandırılır (`DEBIT`), Sistem Kasa hesabı alacaklandırılır (`CREDIT`).
+  - `WDR-` önekli dekont / referans numarası üretimi.
+- [ ] `TransferController`: `POST /api/v1/transfers/withdraw` (`@RequestHeader("Idempotency-Key")`) endpoint'i.
 
 ### 2. Flyway Veritabanı Migrasyonu (Database Migration)
 - [ ] Hibernate `ddl-auto=update` modundan Flyway versiyonlu migrasyona geçiş (`spring.flyway.enabled=true`, `ddl-auto=validate`).
-- [ ] `db/migration/V1__init_schema.sql`:
+- [ ] `src/main/resources/db/migration/V1__init_schema.sql`:
   - `customers`, `accounts`, `transactions`, `ledger_entries` fiziksel DDL script'i.
   - `CHECK (balance >= 0)` ve `CHECK (amount > 0)` kısıtları.
-  - Sık sorgulanan kolonlar (`account_number`, `idempotency_key`, `reference_number`, `created_at`) için B-Tree performans indeksleri.
+  - `idx_accounts_iban`, `idx_tx_idempotency_key`, `idx_ledger_created_at` B-Tree performans indeksleri.
 
 ### 3. API Dokümantasyonu (OpenAPI 3 / Swagger)
 - [ ] `springdoc-openapi-starter-webmvc-ui` entegrasyonu.
-- [ ] Swagger UI üzerinden transfer, deposit ve hesap açılışlarının tarayıcıdan interaktif olarak test edilebilmesi (`http://localhost:8080/swagger-ui.html`).
-- [ ] DTO'lar ve endpoint'ler için `@Operation`, `@ApiResponse`, `@Schema` açıklamaları.
-
-### 4. Kalan Birim (Unit) Testleri (Opsiyonel / Tam Kapsama)
-- [ ] `TransferServiceTest`: Kalan deposit hata senaryoları (inaktif hesap, döviz uyuşmazlığı, hesap bulunamadı).
-- [ ] `AccountServiceTest` & `CustomerServiceTest`: IBAN format/regex denetimleri ve tekillik ihlalleri.
+- [ ] `http://localhost:8080/swagger-ui.html` üzerinden canlı interaktif API arayüzü.
+- [ ] Endpoint'ler ve DTO'lar için OpenAPI açıklamaları.
