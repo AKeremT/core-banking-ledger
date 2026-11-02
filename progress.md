@@ -118,31 +118,39 @@
     - Polimorfik hata yönetimi (`Exception ex`), `MissingRequestHeaderException` ve `DataIntegrityViolationException` için `ClassCastException` önlemleri.
     - Bean Validation (`MethodArgumentNotValidException`) alan bazlı Map dönüştürme, bozuk JSON (`HttpMessageNotReadableException`) ve hatalı parametre (`MethodArgumentTypeMismatchException`) koruması.
     - Sektör standardı `ErrorResponse` record DTO'su.
+- [x] **Entegrasyon ve Concurrency Stres Testleri (Testcontainers - 2 Kasım 2026):**
+  - `TransferConcurrencyIntegrationTest`: Docker üzerinde çalışan gerçek PostgreSQL 16 ile Testcontainers entegrasyonu (`@ServiceConnection`).
+  - **Deadlock-Free Çapraz Transfer Testi (100 Thread):** 50 A->B ve 50 B->A eşzamanlı çapraz transfer; `compareTo` kilit sıralamasının (Lock Ordering) deadlock üretmediği ve bakiyelerin kuruşu kuruşuna korunduğu ispatlandı.
+  - **Double-Spending ve Negatif Bakiye Koruması Testi (10 Thread):** 100 TL'lik hesaptan aynı anda 10x20 TL çekim talebinde tam 5 işlemin başarılı olduğu, 5 işlemin `InsufficientBalanceException` ile reddedildiği ve bakiyenin asla negatife düşmeyerek 0.00 TL'de kaldığı kanıtlandı.
+  - `integration_testing_and_concurrency_guide.html`: Entegrasyon testlerinin anatomisi, Testcontainers mantığı ve concurrency analizi görselleştirildi.
+  - `java_concurrency_mastery_roadmap.html`: Üst dizinde donanımdan Virtual Threads'e kadar uzanan kapsamlı Java Concurrency yol haritası dokümante edildi.
 
 ---
 
-## 🎯 Sıradaki Adımlar
+## 🎯 Sıradaki Adımlar (Projenin Tamamlanması İçin Kalanlar)
 
-README yol haritası ve sistem mimarisi doğrultusunda sıradaki geliştirme maddeleri:
+README yol haritası ve sistem mimarisi doğrultusunda projenin üretime hazır (production-ready) hale gelmesi için kalan eksik modüller:
 
-### 1. Entegrasyon ve Concurrency Stres Testleri (Testcontainers)
-- [ ] Testcontainers ile gerçek PostgreSQL 16 ayağa kaldırılarak entegrasyon testlerinin yazılması.
-- [ ] `ExecutorService` ile 100 eşzamanlı thread koşturularak aynı hesaplar üzerinde çapraz transfer stres testi yapılması:
-  - **Deadlock-Free Lock Ordering** mekanizmasının kilitlenme yaşamadığının ispatlanması.
-  - **Double Spending** (çift harcama) açığının oluşmadığının ve bakiyenin kuruşu kuruşuna tutarlı kaldığının kanıtlanması.
-
-### 2. Kalan Birim (Unit) Testlerinin Tamamlanması (Mockito)
-- [ ] **`TransferServiceTest` (Kalan Deposit Senaryoları):** Idempotency kalkanı, inaktif hesap, para birimi uyuşmazlığı, hesap bulunamadı ve kasa yetersiz bakiye kontrolleri.
-- [ ] **`AccountServiceTest`:** Müşteri bulunamadı durumu, 26 haneli TR IBAN regex ve format doğrulaması, IBAN çakışma (collision) simülasyonu.
-- [ ] **`CustomerServiceTest`:** Mükerrer TCKN/Email ile kayıt denemesi (`CustomerAlreadyExistsException`), müşteri sorgulama başarı ve hata durumları.
-
-### 3. Ekstre ve Finansal Analiz Motoru (Java Stream API)
+### 1. Ekstre ve Finansal Analiz Motoru (Java Stream API)
 - [ ] `AccountStatementService`: Belirli tarih aralığındaki `LedgerEntry` hareketlerinin çekilmesi.
 - [ ] Java Stream API (`groupingBy`, `filter`, `reduce`) pratikleri:
-  - Toplam giren (`CREDIT`) ve çıkan (`DEBIT`) tutarların hesaplanması.
-  - İşlem türüne göre (Deposit, Withdrawal, Transfer) gruplama.
-  - Sayfalanmış (paginated) ve tarih sıralı ekstre DTO'sunun üretilmesi.
+  - Toplam giren (`CREDIT`) ve çıkan (`DEBIT`) tutarların kuruş hassasiyetinde hesaplanması.
+  - İşlem türüne göre (Deposit, Withdrawal, Transfer) harcama dökümü gruplaması (`Collectors.groupingBy`).
+  - Sayfalanmış (paginated) ve kronolojik sıralı ekstre DTO'sunun üretilmesi.
+- [ ] `AccountController` / `StatementController` üzerinden `GET /api/v1/accounts/{accountNumber}/statement` endpoint'i.
 
-### 4. Flyway Veritabanı Migrasyonu (Database Migration)
-- [ ] Hibernate `ddl-auto=update` modundan Flyway versiyonlu migrasyona geçiş (`db/migration/V1__init_schema.sql`).
-- [ ] `CHECK (balance >= 0)` ve `CHECK (amount > 0)` kısıtları ile performans indekslerinin fiziksel SQL script'inde tanımlanması.
+### 2. Flyway Veritabanı Migrasyonu (Database Migration)
+- [ ] Hibernate `ddl-auto=update` modundan Flyway versiyonlu migrasyona geçiş (`spring.flyway.enabled=true`, `ddl-auto=validate`).
+- [ ] `db/migration/V1__init_schema.sql`:
+  - `customers`, `accounts`, `transactions`, `ledger_entries` fiziksel DDL script'i.
+  - `CHECK (balance >= 0)` ve `CHECK (amount > 0)` kısıtları.
+  - Sık sorgulanan kolonlar (`account_number`, `idempotency_key`, `reference_number`, `created_at`) için B-Tree performans indeksleri.
+
+### 3. API Dokümantasyonu (OpenAPI 3 / Swagger)
+- [ ] `springdoc-openapi-starter-webmvc-ui` entegrasyonu.
+- [ ] Swagger UI üzerinden transfer, deposit ve hesap açılışlarının tarayıcıdan interaktif olarak test edilebilmesi (`http://localhost:8080/swagger-ui.html`).
+- [ ] DTO'lar ve endpoint'ler için `@Operation`, `@ApiResponse`, `@Schema` açıklamaları.
+
+### 4. Kalan Birim (Unit) Testleri (Opsiyonel / Tam Kapsama)
+- [ ] `TransferServiceTest`: Kalan deposit hata senaryoları (inaktif hesap, döviz uyuşmazlığı, hesap bulunamadı).
+- [ ] `AccountServiceTest` & `CustomerServiceTest`: IBAN format/regex denetimleri ve tekillik ihlalleri.
