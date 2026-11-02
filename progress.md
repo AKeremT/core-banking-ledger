@@ -3,7 +3,7 @@
 **Proje:** `core-banking-ledger` (banking-v1)  
 **Odak:** Double-Entry Bookkeeping, Race Condition & Locking, Idempotency, Clean Architecture  
 **Başlangıç Tarihi:** 26 Ekim 2026  
-**Son Güncelleme:** 1 Kasım 2026  
+**Son Güncelleme:** 2 Kasım 2026  
 
 > [!IMPORTANT]
 > **ÖĞRENME VE ÇALIŞMA METODOLOJİSİ (MENTORLUK KURALI - ASLA UNUTULMAYACAK):**
@@ -107,42 +107,42 @@
   - Finans ve fintech mühendisliği standartlarında uluslararası İngilizce `README.md` hazırlandı (Problem tanımı, 5 Güvenlik Kapısı, Double-entry dengesi, Lock Ordering, Mermaid ERD & akış şemaları, Mockito test tablosu, Docker çalıştırma talimatları).
   - Hazırlanan detaylı Türkçe dokümantasyon `README-tr.md` olarak korundu ve iki dosya arasına çift yönlü dil geçiş bağlantıları yerleştirildi.
   - Değişiklikler Conventional Commits kurallarına uygun olarak GitHub'a commit ve push edildi (`origin/main`).
+- [x] **REST Controller ve Sunum (Presentation) Katmanı (2 Kasım 2026):**
+  - `CustomerController`: Müşteri kayıt (`POST /api/v1/customers` -> 201 Created) ve TCKN/ID bazlı sorgulama endpoint'leri (`GET /api/v1/customers/{id}`).
+  - `AccountController`: Hesap açılışı (`POST /api/v1/accounts` -> 201 Created), hesap no ve müşteri ID ile listeleme endpoint'leri.
+  - `TransferController`: 
+    - Para transferi (`POST /api/v1/transfers`) -> `@RequestHeader("Idempotency-Key")` zorunlu kalkanı.
+    - Para girişi / nakit yatırma (`POST /api/v1/transfers/deposit`) -> `@RequestHeader("Idempotency-Key")` koruması.
+  - `GlobalExceptionHandler` (`@RestControllerAdvice`):
+    - OWASP uyumlu merkezi hata yönetimi: 500 Internal Server Error'da istemciye jenerik sabit mesaj dönülürken `log.error` ile iç detayların kaydedilmesi.
+    - Polimorfik hata yönetimi (`Exception ex`), `MissingRequestHeaderException` ve `DataIntegrityViolationException` için `ClassCastException` önlemleri.
+    - Bean Validation (`MethodArgumentNotValidException`) alan bazlı Map dönüştürme, bozuk JSON (`HttpMessageNotReadableException`) ve hatalı parametre (`MethodArgumentTypeMismatchException`) koruması.
+    - Sektör standardı `ErrorResponse` record DTO'su.
 
 ---
 
-## 🎯 Sıradaki Adımlar (Yarın Devam Edilecek Eksik Kısımlar)
+## 🎯 Sıradaki Adımlar
 
-README yol haritası ve sistem mimarisi doğrultusunda yarınki çalışma oturumunda ele alınacak geliştirme maddeleri:
+README yol haritası ve sistem mimarisi doğrultusunda sıradaki geliştirme maddeleri:
 
-### 1. REST Controller ve Presentation Katmanı
-- [ ] **`CustomerController`:** Müşteri oluşturma (`POST /api/v1/customers`), ID ve TCKN ile sorgulama (`GET /api/v1/customers/{id}`).
-- [ ] **`AccountController`:** Hesap açılışı (`POST /api/v1/accounts`), hesap no ve müşteri ID ile listeleme endpoint'leri.
-- [ ] **`TransferController`:**
-  - Para transferi (`POST /api/v1/transfers`) -> HTTP Header'dan zorunlu `@RequestHeader("Idempotency-Key") UUID idempotencyKey` alımı.
-  - Para yatırma (`POST /api/v1/transfers/deposit`) -> HTTP Header'dan zorunlu `Idempotency-Key` kontrolü.
-- [ ] **Global Exception Handling (`@RestControllerAdvice`):**
-  - Domain istisnaları (`InsufficientBalanceException` -> 422 Unprocessable Entity, `AccountNotFoundException` -> 404, `AccountInactiveException` -> 409 Conflict, `SelfTransferException` -> 400 Bad Request, `CurrencyMismatchException` -> 400).
-  - Jakarta Bean Validation hatalarının yakalanıp (`MethodArgumentNotValidException`) alan bazlı anlaşılır JSON formatına dönüştürülmesi.
-  - Veritabanı tekillik ihlallerinin (`DataIntegrityViolationException`) 409 Conflict olarak sunulması.
+### 1. Entegrasyon ve Concurrency Stres Testleri (Testcontainers)
+- [ ] Testcontainers ile gerçek PostgreSQL 16 ayağa kaldırılarak entegrasyon testlerinin yazılması.
+- [ ] `ExecutorService` ile 100 eşzamanlı thread koşturularak aynı hesaplar üzerinde çapraz transfer stres testi yapılması:
+  - **Deadlock-Free Lock Ordering** mekanizmasının kilitlenme yaşamadığının ispatlanması.
+  - **Double Spending** (çift harcama) açığının oluşmadığının ve bakiyenin kuruşu kuruşuna tutarlı kaldığının kanıtlanması.
 
 ### 2. Kalan Birim (Unit) Testlerinin Tamamlanması (Mockito)
 - [ ] **`TransferServiceTest` (Kalan Deposit Senaryoları):** Idempotency kalkanı, inaktif hesap, para birimi uyuşmazlığı, hesap bulunamadı ve kasa yetersiz bakiye kontrolleri.
 - [ ] **`AccountServiceTest`:** Müşteri bulunamadı durumu, 26 haneli TR IBAN regex ve format doğrulaması, IBAN çakışma (collision) simülasyonu.
 - [ ] **`CustomerServiceTest`:** Mükerrer TCKN/Email ile kayıt denemesi (`CustomerAlreadyExistsException`), müşteri sorgulama başarı ve hata durumları.
 
-### 3. Entegrasyon ve Concurrency Stres Testleri (Testcontainers)
-- [ ] Testcontainers ile gerçek PostgreSQL 16 ayağa kaldırılarak entegrasyon testlerinin yazılması.
-- [ ] `ExecutorService` ile 100 eşzamanlı thread koşturularak aynı hesaplar üzerinde çapraz transfer stres testi yapılması:
-  - **Deadlock-Free Lock Ordering** mekanizmasının kilitlenme yaşamadığının ispatlanması.
-  - **Double Spending** (çift harcama) açığının oluşmadığının ve bakiyenin kuruşu kuruşuna tutarlı kaldığının kanıtlanması.
-
-### 4. Ekstre ve Finansal Analiz Motoru (Java Stream API)
+### 3. Ekstre ve Finansal Analiz Motoru (Java Stream API)
 - [ ] `AccountStatementService`: Belirli tarih aralığındaki `LedgerEntry` hareketlerinin çekilmesi.
 - [ ] Java Stream API (`groupingBy`, `filter`, `reduce`) pratikleri:
   - Toplam giren (`CREDIT`) ve çıkan (`DEBIT`) tutarların hesaplanması.
   - İşlem türüne göre (Deposit, Withdrawal, Transfer) gruplama.
   - Sayfalanmış (paginated) ve tarih sıralı ekstre DTO'sunun üretilmesi.
 
-### 5. Flyway Veritabanı Migrasyonu (Database Migration)
+### 4. Flyway Veritabanı Migrasyonu (Database Migration)
 - [ ] Hibernate `ddl-auto=update` modundan Flyway versiyonlu migrasyona geçiş (`db/migration/V1__init_schema.sql`).
 - [ ] `CHECK (balance >= 0)` ve `CHECK (amount > 0)` kısıtları ile performans indekslerinin fiziksel SQL script'inde tanımlanması.

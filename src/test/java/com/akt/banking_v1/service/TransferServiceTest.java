@@ -1,7 +1,6 @@
 package com.akt.banking_v1.service;
 
 import com.akt.banking_v1.common.exception.*;
-import com.akt.banking_v1.config.DataInitializer;
 import com.akt.banking_v1.dto.DepositRequest;
 import com.akt.banking_v1.dto.TransferRequest;
 import com.akt.banking_v1.dto.TransferResponse;
@@ -249,7 +248,7 @@ public class TransferServiceTest {
                 .status(AccountStatus.CLOSED)
                 .build();
 
-        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, "kira");
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, description);
 
         when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
 
@@ -286,7 +285,7 @@ public class TransferServiceTest {
                 .status(AccountStatus.ACTIVE)
                 .build();
 
-        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, "kira");
+        TransferRequest request = new TransferRequest(senderIban, receiverIban, transferAmount, description);
 
         when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
 
