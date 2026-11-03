@@ -285,6 +285,7 @@ Sunum katmanı; Jakarta Bean Validation teftişli, client idempotency korumalı 
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/transfers` | `Idempotency-Key` | İki hesap arasında çift taraflı havale/virman | `200 OK` |
 | `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Sistem Kasasından hesaba nakit yatırma | `200 OK` |
+| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` | Hesaptan nakit çekme (Vault alacak, Müşteri borç) | `200 OK` |
 | `POST` | `/api/v1/accounts` | - | Otomatik TR IBAN'lı yeni banka hesabı açma | `201 CREATED` |
 | `GET` | `/api/v1/accounts/{accountNumber}` | - | Hesap özeti ve anlık bakiye sorgulama | `200 OK` |
 | `GET` | `/api/v1/accounts/customer/{customerId}` | - | Müşteriye ait tüm hesapları listeleme | `200 OK` |
@@ -292,6 +293,55 @@ Sunum katmanı; Jakarta Bean Validation teftişli, client idempotency korumalı 
 | `POST` | `/api/v1/customers` | - | Yeni bireysel müşteri kaydı oluşturma | `201 CREATED` |
 | `GET` | `/api/v1/customers/{id}` | - | Müşteri profil bilgilerini ID ile getirme | `200 OK` |
 | `GET` | `/api/v1/customers/identity/{identityNumber}` | - | TCKN/Vergi No ile müşteri sorgulama | `200 OK` |
+
+---
+
+### 📑 Canlı Swagger UI & OpenAPI 3 Dokümantasyonu
+
+Uygulama ayağa kalktığında `http://localhost:8080/swagger-ui.html` adresinden erişilebilen tam interaktif API arayüzü:
+
+![Swagger UI Documentation](./docs/images/swagger-ui.png)
+
+---
+
+### 📊 Canlı Hesap Ekstresi (Account Statement) JSON Yanıtı
+
+`GET /api/v1/accounts/{accountNumber}/statement` sorgusunun Java Stream API tarafından hesaplanan gerçek çıktısı:
+
+```json
+{
+  "accountNumber": "TR244134513831384376055830",
+  "currency": "TRY",
+  "currentBalance": 750.0000,
+  "startDate": "2026-10-04T16:06:50Z",
+  "endDate": "2026-11-03T16:06:50Z",
+  "totalCredit": 1000.0000,
+  "totalDebit": 250.0000,
+  "netChange": 750.0000,
+  "summaryByType": {
+    "DEPOSIT": 1000.0000,
+    "WITHDRAW": 250.0000
+  },
+  "items": [
+    {
+      "referenceNumber": "WDR-20261103-6C1D102E",
+      "entryType": "DEBIT",
+      "transactionType": "WITHDRAW",
+      "amount": 250.0000,
+      "description": "ATM Nakit Çekme",
+      "createdAt": "2026-11-03T16:01:16Z"
+    },
+    {
+      "referenceNumber": "DEP-20261103-C5BF4F0A",
+      "entryType": "CREDIT",
+      "transactionType": "DEPOSIT",
+      "amount": 1000.0000,
+      "description": "Maaş Yatırma",
+      "createdAt": "2026-11-03T16:00:04Z"
+    }
+  ]
+}
+```
 
 #### Merkezi Hata Yakalama (`GlobalExceptionHandler`)
 Tüm iş kuralı ihlalleri, bulunamayan kayıtlar ve validasyon hataları RFC-7807 uyumlu `ErrorResponse` yapısıyla döner:

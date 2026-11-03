@@ -289,6 +289,7 @@ The presentation layer exposes RESTful endpoints with strict Jakarta Bean Valida
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/transfers` | `Idempotency-Key` | Executes bilateral account-to-account transfer | `200 OK` |
 | `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Injects cash deposit via System Central Vault | `200 OK` |
+| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` | Withdraws cash from account (Debits Customer, Credits Vault) | `200 OK` |
 | `POST` | `/api/v1/accounts` | - | Opens a new bank account with TR IBAN | `201 CREATED` |
 | `GET` | `/api/v1/accounts/{accountNumber}` | - | Retrieves account summary and real-time balance | `200 OK` |
 | `GET` | `/api/v1/accounts/customer/{customerId}` | - | Lists all accounts owned by a customer | `200 OK` |
@@ -296,6 +297,55 @@ The presentation layer exposes RESTful endpoints with strict Jakarta Bean Valida
 | `POST` | `/api/v1/customers` | - | Onboards a new retail customer (TCKN/Email) | `201 CREATED` |
 | `GET` | `/api/v1/customers/{id}` | - | Retrieves customer profile by primary key | `200 OK` |
 | `GET` | `/api/v1/customers/identity/{identityNumber}` | - | Looks up customer by national identity / tax ID | `200 OK` |
+
+---
+
+### 📑 Live Swagger UI & OpenAPI 3 Specification
+
+When the application boots, the interactive Swagger UI documentation is accessible at `http://localhost:8080/swagger-ui.html`:
+
+![Swagger UI Documentation](./docs/images/swagger-ui.png)
+
+---
+
+### 📊 Live Account Statement & Analytics Response
+
+Real-world JSON response payload produced by Java Stream API via `GET /api/v1/accounts/{accountNumber}/statement`:
+
+```json
+{
+  "accountNumber": "TR244134513831384376055830",
+  "currency": "TRY",
+  "currentBalance": 750.0000,
+  "startDate": "2026-10-04T16:06:50Z",
+  "endDate": "2026-11-03T16:06:50Z",
+  "totalCredit": 1000.0000,
+  "totalDebit": 250.0000,
+  "netChange": 750.0000,
+  "summaryByType": {
+    "DEPOSIT": 1000.0000,
+    "WITHDRAW": 250.0000
+  },
+  "items": [
+    {
+      "referenceNumber": "WDR-20261103-6C1D102E",
+      "entryType": "DEBIT",
+      "transactionType": "WITHDRAW",
+      "amount": 250.0000,
+      "description": "ATM Nakit Çekme",
+      "createdAt": "2026-11-03T16:01:16Z"
+    },
+    {
+      "referenceNumber": "DEP-20261103-C5BF4F0A",
+      "entryType": "CREDIT",
+      "transactionType": "DEPOSIT",
+      "amount": 1000.0000,
+      "description": "Maaş Yatırma",
+      "createdAt": "2026-11-03T16:00:04Z"
+    }
+  ]
+}
+```
 
 #### Standardized Error Handling (`GlobalExceptionHandler`)
 All business rule violations, missing entity lookups, and validation errors return structured `ErrorResponse` objects with timestamped audit payloads:
