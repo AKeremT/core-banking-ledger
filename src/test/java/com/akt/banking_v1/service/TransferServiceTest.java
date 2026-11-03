@@ -4,6 +4,7 @@ import com.akt.banking_v1.common.exception.*;
 import com.akt.banking_v1.dto.DepositRequest;
 import com.akt.banking_v1.dto.TransferRequest;
 import com.akt.banking_v1.dto.TransferResponse;
+import com.akt.banking_v1.dto.WithdrawRequest;
 import com.akt.banking_v1.enums.*;
 import com.akt.banking_v1.mapper.TransferMapper;
 import com.akt.banking_v1.model.Account;
@@ -359,6 +360,74 @@ public class TransferServiceTest {
         assertEquals(0, new BigDecimal("999999900.00").compareTo(vault.getBalance()),
                 "Sender balance should be 999999900.0000");
         assertEquals(0, new BigDecimal("600.00").compareTo(receiver.getBalance()),
+                "Receiver balance should be 600.00");
+
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
+        verify(transferMapper, times(1)).toResponse(any(Transaction.class));
+    }
+
+    @Test
+    void withdraw_whenValidRequest_shouldWithdrawSuccessfully() {
+
+        String customerIban = "TR111";
+        String idempotencyKey = "idempotencyKey";
+        BigDecimal transferAmount = new BigDecimal("100.00");
+
+        Customer customer = Customer.builder()
+                .identityNumber("00000000000")
+                .firstName("SYSTEM")
+                .lastName("BANK_VAULT")
+                .email("system.vault@corebank.com")
+                .build();
+
+        Account vault = Account.builder()
+                .accountNumber(SYSTEM_TRY_ACCOUNT)
+                .currency(Currency.TRY)
+                .balance(new BigDecimal("1000000000.0000"))
+                .status(AccountStatus.ACTIVE)
+                .accountType(AccountType.CHECKING)
+                .customer(customer)
+                .build();
+
+        Account customerAccount = Account.builder()
+                .id(1L)
+                .accountNumber(customerIban)
+                .balance(new BigDecimal("500"))
+                .currency(Currency.TRY)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        WithdrawRequest request = new WithdrawRequest(customerIban, transferAmount, "kira");
+
+        when(transactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+
+        when(accountRepository.findByAccountNumberWithLock(customerIban)).thenReturn(Optional.of(customerAccount));
+        when(accountRepository.findByAccountNumberWithLock(SYSTEM_TRY_ACCOUNT)).thenReturn(Optional.of(vault));
+
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArgument(0));
+
+        TransferResponse mockResponse = new TransferResponse(
+                UUID.randomUUID(),
+                "WDR-123",
+                TransactionStatus.COMPLETED,
+                customerIban,
+                SYSTEM_TRY_ACCOUNT,
+                transferAmount,
+                Currency.TRY,
+                Instant.now()
+        );
+
+        when(transferMapper.toResponse(any(Transaction.class))).thenReturn(mockResponse);
+
+        TransferResponse result = transferService.withdraw(request, idempotencyKey);
+
+        assertEquals("WDR-123", result.referenceNumber());
+        assertEquals(TransactionStatus.COMPLETED, result.status());
+
+        assertNotNull(result, "Transfer result should not be null");
+        assertEquals(0, new BigDecimal("1000000100.00").compareTo(vault.getBalance()),
+                "Sender balance should be 1000000100.0000");
+        assertEquals(0, new BigDecimal("400.00").compareTo(customerAccount.getBalance()),
                 "Receiver balance should be 600.00");
 
         verify(transactionRepository, times(1)).save(any(Transaction.class));

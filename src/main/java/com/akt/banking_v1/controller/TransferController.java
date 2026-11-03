@@ -3,6 +3,7 @@ package com.akt.banking_v1.controller;
 import com.akt.banking_v1.dto.DepositRequest;
 import com.akt.banking_v1.dto.TransferRequest;
 import com.akt.banking_v1.dto.TransferResponse;
+import com.akt.banking_v1.dto.WithdrawRequest;
 import com.akt.banking_v1.service.TransferService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,5 +30,12 @@ public class TransferController {
                                                     @Valid @RequestBody DepositRequest depositRequest) {
 
         return ResponseEntity.ok(transferService.deposit(depositRequest, idempotencyKey));
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<TransferResponse> withdraw(@RequestHeader("Idempotency-Key") String idempotencyKey,
+                                                     @Valid @RequestBody WithdrawRequest withdrawRequest) {
+
+        return ResponseEntity.ok(transferService.withdraw(withdrawRequest, idempotencyKey));
     }
 }
