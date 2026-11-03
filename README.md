@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-8%2F8%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-8%20Unit%20%7C%202%20Integration%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -179,21 +179,29 @@ core-banking-ledger/
 │   │   ├── java/com/akt/banking_v1/
 │   │   │   ├── BankingV1Application.java # Spring Boot entry point
 │   │   │   ├── common/
-│   │   │   │   └── exception/           # Domain financial exception hierarchy
+│   │   │   │   └── exception/           # Domain exception hierarchy & global advice
 │   │   │   │       ├── BankingException.java
 │   │   │   │       ├── InsufficientBalanceException.java
 │   │   │   │       ├── AccountNotFoundException.java
 │   │   │   │       ├── AccountInactiveException.java
 │   │   │   │       ├── CurrencyMismatchException.java
 │   │   │   │       ├── SelfTransferException.java
-│   │   │   │       └── CustomerAlreadyExistsException.java
+│   │   │   │       ├── CustomerAlreadyExistsException.java
+│   │   │   │       ├── CustomerNotFoundException.java
+│   │   │   │       └── GlobalExceptionHandler.java
 │   │   │   ├── config/
 │   │   │   │   └── DataInitializer.java # Auto-seeds System Vault Customer & TRY Account
+│   │   │   ├── controller/              # REST API presentation layer
+│   │   │   │   ├── TransferController.java # Idempotent transfer & deposit endpoints
+│   │   │   │   ├── AccountController.java  # Account onboarding & statement endpoints
+│   │   │   │   └── CustomerController.java # Customer onboarding & query endpoints
 │   │   │   ├── dto/                     # Jakarta Validation-guarded Record DTOs
 │   │   │   │   ├── TransferRequest.java / TransferResponse.java
 │   │   │   │   ├── CreateAccountRequest.java / AccountResponse.java
 │   │   │   │   ├── CreateCustomerRequest.java / CustomerResponse.java
-│   │   │   │   └── DepositRequest.java
+│   │   │   │   ├── DepositRequest.java
+│   │   │   │   ├── AccountStatementResponse.java / StatementItemResponse.java
+│   │   │   │   └── ErrorResponse.java
 │   │   │   ├── enums/                   # Type-safe financial domain states
 │   │   │   │   ├── Currency.java (TRY, USD, EUR)
 │   │   │   │   ├── AccountStatus.java (ACTIVE, SUSPENDED, CLOSED)
@@ -218,13 +226,17 @@ core-banking-ledger/
 │   │   │   └── service/                 # Core financial engines
 │   │   │       ├── TransferService.java # Transfer, Deposit, Lock Ordering, Idempotency
 │   │   │       ├── AccountService.java  # Account onboarding, 26-char TR IBAN generator
-│   │   │       └── CustomerService.java # Customer onboarding & uniqueness verification
+│   │   │       ├── CustomerService.java # Customer onboarding & uniqueness verification
+│   │   │       └── AccountStatementService.java # Stream API statements & financial analytics
 │   │   └── resources/
 │   │       └── application.properties   # Connection pool, Hibernate, and DDL config
 │   └── test/
 │       └── java/com/akt/banking_v1/
 │           ├── BankingV1ApplicationTests.java
+│           ├── TestBankingV1Application.java
 │           ├── TestcontainersConfiguration.java
+│           ├── integration/
+│           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Race Condition Tests
 │           └── service/
 │               └── TransferServiceTest.java # 8 Exhaustive Mockito Unit Test Scenarios
 ├── docker-compose.yml                   # PostgreSQL 16 container definition
@@ -260,6 +272,43 @@ core-banking-ledger/
 ### 3. `CustomerService` (Customer Onboarding)
 * Guarantees identity number (TCKN/Tax ID) and email uniqueness through defensive pre-persistence checks (`existsByIdentityNumber`, `existsByEmail`).
 
+### 4. `AccountStatementService` (Financial Statement & Analytics Engine)
+* **High-Performance Stream Processing:** Employs Java Stream API (`filter`, `reduce`, `collect(groupingBy)`) for zero-allocation, thread-safe in-memory aggregation of ledger history.
+* **Flexible Date Windows:** Generates financial statements over user-defined intervals (`startDate` to `endDate`), defaulting to the last 30 calendar days when omitted.
+* **Cash Flow Analytics:** Calculates total debits, total credits, and net financial flow:
+  $$\text{Net Cash Flow} = \sum \text{CREDIT} - \sum \text{DEBIT}$$
+* **Breakdown by Transaction Type:** Dynamically categorizes line items by `TransactionType` (`INTERNAL_TRANSFER`, `DEPOSIT`, `WITHDRAW`) for clear debit/credit attribution.
+
+---
+
+## 🌐 REST API Specification
+
+The presentation layer exposes RESTful endpoints with strict Jakarta Bean Validation, client idempotency enforcement, and RFC-7807 structured error responses:
+
+| Method | Endpoint | Required Headers | Description | Status Code |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/transfers` | `Idempotency-Key` | Executes bilateral account-to-account transfer | `200 OK` |
+| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Injects cash deposit via System Central Vault | `200 OK` |
+| `POST` | `/api/v1/accounts` | - | Opens a new bank account with TR IBAN | `201 CREATED` |
+| `GET` | `/api/v1/accounts/{accountNumber}` | - | Retrieves account summary and real-time balance | `200 OK` |
+| `GET` | `/api/v1/accounts/customer/{customerId}` | - | Lists all accounts owned by a customer | `200 OK` |
+| `GET` | `/api/v1/accounts/{accountNumber}/statement` | - | Generates date-ranged financial statement & net cash flow | `200 OK` |
+| `POST` | `/api/v1/customers` | - | Onboards a new retail customer (TCKN/Email) | `201 CREATED` |
+| `GET` | `/api/v1/customers/{id}` | - | Retrieves customer profile by primary key | `200 OK` |
+| `GET` | `/api/v1/customers/identity/{identityNumber}` | - | Looks up customer by national identity / tax ID | `200 OK` |
+
+#### Standardized Error Handling (`GlobalExceptionHandler`)
+All business rule violations, missing entity lookups, and validation errors return structured `ErrorResponse` objects with timestamped audit payloads:
+```json
+{
+  "timestamp": "2026-11-03T09:40:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Sender account balance is insufficient for this transfer",
+  "path": "/api/v1/transfers"
+}
+```
+
 ---
 
 ## 🧪 Testing Discipline & Verification Suite
@@ -284,6 +333,15 @@ Financial accuracy and defensive programming invariants are verified via **Mocki
 | **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **Account Status Guard:** `SUSPENDED` / `CLOSED` accounts | Blocks execution immediately when account status is not `ACTIVE` |
 | **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Currency Parity Guard:** Mixed currency prevention | Prohibits cross-currency transfers (e.g., TRY to USD/EUR) |
 | **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Vault Deposit:** System cash injection | Debits Central Vault, credits customer account, confirms `DEP-` receipt format |
+
+### `TransferConcurrencyIntegrationTest` Suite (Testcontainers & PostgreSQL 16)
+
+Multi-threaded race conditions, transaction isolation, and pessimistic locking invariants are verified against an ephemeral PostgreSQL 16 container using **Testcontainers**, `ExecutorService`, and `CountDownLatch`:
+
+| # | Concurrency Test Scenario | Concurrency Load | Invariant Verified | Outcome |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | `testDeadlockFreeCrossTransfersConcurrently` | **100 Concurrent Threads**<br/>(50 threads: Account A $\rightarrow$ B)<br/>(50 threads: Account B $\rightarrow$ A) | **Zero Deadlocks & Balance Conservation:**<br/>Lexicographical IBAN lock ordering eliminates cyclic dependency deadlocks. All 100 bilateral transfers commit without failure. Total combined balance across accounts is strictly conserved ($\sum \text{Balances} = 20,000.0000 \text{ TRY}$). | `PASSED` (0 Deadlocks) |
+| **2** | `testDoubleSpendingPreventionConcurrently` | **50 Concurrent Threads**<br/>(50 simultaneous attempts to transfer 100 TRY from an account with exactly 100 TRY balance) | **Race Condition & Overdraft Prevention:**<br/>Row-level pessimistic write locking (`SELECT ... FOR UPDATE`) guarantees only 1 thread executes. The remaining 49 threads fail fast with `InsufficientBalanceException`. Final balance is strictly `0.0000 TRY`. | `PASSED` (0 Overdrafts) |
 
 ---
 
@@ -345,9 +403,9 @@ docker compose up -d
 - [x] Core fund transfer engine (`TransferService.transfer` & `TransferService.deposit`).
 - [x] Collision-guarded Turkish IBAN generator, customer and account onboarding services.
 - [x] Exhaustive Mockito unit testing suite (`TransferServiceTest` - 8/8 passing).
-- [ ] **REST Controllers & Global Exception Handler:** `@RestController` and `@ControllerAdvice` presentation layer.
-- [ ] **Testcontainers Concurrency Stress Suite:** 100 concurrent threads testing race conditions & deadlock freedom on real PostgreSQL.
-- [ ] **Financial Statement & Analytics Engine:** Java Stream API aggregations (`groupingBy`, `reduce`) for account statements.
+- [x] **REST Controllers & Global Exception Handler:** `@RestController` and `@ControllerAdvice` presentation layer with `Idempotency-Key` shield.
+- [x] **Testcontainers Concurrency Stress Suite:** 100 concurrent threads testing race conditions & deadlock freedom on real PostgreSQL 16.
+- [x] **Financial Statement & Analytics Engine:** Java Stream API aggregations (`groupingBy`, `reduce`) for account statements.
 - [ ] **Flyway Database Migration:** Automated versioned DDL scripts.
 
 ---

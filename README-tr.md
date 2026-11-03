@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-8%2F8%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-8%20Birim%20%7C%202%20Entegrasyon%20Başarılı-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -175,21 +175,29 @@ core-banking-ledger/
 │   │   ├── java/com/akt/banking_v1/
 │   │   │   ├── BankingV1Application.java # Spring Boot giriş noktası
 │   │   │   ├── common/
-│   │   │   │   └── exception/           # Finansal domain istisna hiyerarşisi
+│   │   │   │   └── exception/           # Domain istisna hiyerarşisi & global advice
 │   │   │   │       ├── BankingException.java
 │   │   │   │       ├── InsufficientBalanceException.java
 │   │   │   │       ├── AccountNotFoundException.java
 │   │   │   │       ├── AccountInactiveException.java
 │   │   │   │       ├── CurrencyMismatchException.java
 │   │   │   │       ├── SelfTransferException.java
-│   │   │   │       └── CustomerAlreadyExistsException.java
+│   │   │   │       ├── CustomerAlreadyExistsException.java
+│   │   │   │       ├── CustomerNotFoundException.java
+│   │   │   │       └── GlobalExceptionHandler.java
 │   │   │   ├── config/
 │   │   │   │   └── DataInitializer.java # Sistem Müşterisi ve Kasa Hesabı başlangıç verisi
+│   │   │   ├── controller/              # REST API sunum katmanı
+│   │   │   │   ├── TransferController.java # Idempotent transfer & para yatırma uç noktaları
+│   │   │   │   ├── AccountController.java  # Hesap açılışı & ekstre uç noktaları
+│   │   │   │   └── CustomerController.java # Müşteri kayıt & sorgulama uç noktaları
 │   │   │   ├── dto/                     # Jakarta Validation korumalı Record DTO'lar
 │   │   │   │   ├── TransferRequest.java / TransferResponse.java
 │   │   │   │   ├── CreateAccountRequest.java / AccountResponse.java
 │   │   │   │   ├── CreateCustomerRequest.java / CustomerResponse.java
-│   │   │   │   └── DepositRequest.java
+│   │   │   │   ├── DepositRequest.java
+│   │   │   │   ├── AccountStatementResponse.java / StatementItemResponse.java
+│   │   │   │   └── ErrorResponse.java
 │   │   │   ├── enums/                   # Tip güvenli finansal durumlar
 │   │   │   │   ├── Currency.java (TRY, USD, EUR)
 │   │   │   │   ├── AccountStatus.java (ACTIVE, SUSPENDED, CLOSED)
@@ -214,13 +222,17 @@ core-banking-ledger/
 │   │   │   └── service/                 # Finansal iş mantığı motorları
 │   │   │       ├── TransferService.java # Transfer, Deposit, Lock Ordering, Idempotency
 │   │   │       ├── AccountService.java  # Hesap açılışı, 26 haneli TR IBAN üretimi
-│   │   │       └── CustomerService.java # Müşteri onboarding ve tekillik kontrolleri
+│   │   │       ├── CustomerService.java # Müşteri onboarding ve tekillik kontrolleri
+│   │   │       └── AccountStatementService.java # Stream API ile hesap ekstresi ve finansal analitik
 │   │   └── resources/
 │   │       └── application.properties   # Veritabanı ve Hibernate ayarları
 │   └── test/
 │       └── java/com/akt/banking_v1/
 │           ├── BankingV1ApplicationTests.java
+│           ├── TestBankingV1Application.java
 │           ├── TestcontainersConfiguration.java
+│           ├── integration/
+│           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Yarış Durumu Testleri
 │           └── service/
 │               └── TransferServiceTest.java # 8 Kapsamlı Mockito Birim Test Senaryosu
 ├── docker-compose.yml                   # PostgreSQL 16 servis tanımı
@@ -256,6 +268,43 @@ core-banking-ledger/
 ### 3. `CustomerService` (Müşteri Onboarding)
 * TCKN/Vergi No ve e-posta adreslerinin tekilliği uygulama katmanında savunmacı kontrollerle (`existsByIdentityNumber`, `existsByEmail`) teftiş edilir.
 
+### 4. `AccountStatementService` (Finansal Ekstre ve Analiz Motoru)
+* **Yüksek Performanslı Stream API:** Defter geçmişi bellekte `filter`, `reduce` ve `collect(groupingBy)` kullanılarak sıfır bellek sızıntısıyla işlenir.
+* **Esnek Tarih Penceresi:** Belirtilen tarih aralığında (`startDate` - `endDate`) ekstre dökümü oluşturulur; tarih verilmediğinde varsayılan son 30 günü analiz eder.
+* **Nakit Akış Analitiği:** Toplam borç (debit), toplam alacak (credit) ve net nakit akışı hesaplanır:
+  $$\text{Net Akış} = \sum \text{CREDIT} - \sum \text{DEBIT}$$
+* **İşlem Türüne Göre Kırılım:** Hareketler `TransactionType` (`INTERNAL_TRANSFER`, `DEPOSIT`, `WITHDRAW`) bazında gruplanarak kullanıcıya raporlanır.
+
+---
+
+## 🌐 REST API Uç Noktaları (Endpoints)
+
+Sunum katmanı; Jakarta Bean Validation teftişli, client idempotency korumalı ve RFC-7807 standartlarında hata yanıtı üreten RESTful servislere sahiptir:
+
+| Metot | Uç Nokta (Endpoint) | Zorunlu Header | Açıklama | HTTP Kodu |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/transfers` | `Idempotency-Key` | İki hesap arasında çift taraflı havale/virman | `200 OK` |
+| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Sistem Kasasından hesaba nakit yatırma | `200 OK` |
+| `POST` | `/api/v1/accounts` | - | Otomatik TR IBAN'lı yeni banka hesabı açma | `201 CREATED` |
+| `GET` | `/api/v1/accounts/{accountNumber}` | - | Hesap özeti ve anlık bakiye sorgulama | `200 OK` |
+| `GET` | `/api/v1/accounts/customer/{customerId}` | - | Müşteriye ait tüm hesapları listeleme | `200 OK` |
+| `GET` | `/api/v1/accounts/{accountNumber}/statement` | - | Tarih aralıklı hesap ekstresi ve net akış | `200 OK` |
+| `POST` | `/api/v1/customers` | - | Yeni bireysel müşteri kaydı oluşturma | `201 CREATED` |
+| `GET` | `/api/v1/customers/{id}` | - | Müşteri profil bilgilerini ID ile getirme | `200 OK` |
+| `GET` | `/api/v1/customers/identity/{identityNumber}` | - | TCKN/Vergi No ile müşteri sorgulama | `200 OK` |
+
+#### Merkezi Hata Yakalama (`GlobalExceptionHandler`)
+Tüm iş kuralı ihlalleri, bulunamayan kayıtlar ve validasyon hataları RFC-7807 uyumlu `ErrorResponse` yapısıyla döner:
+```json
+{
+  "timestamp": "2026-11-03T09:40:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Sender account balance is insufficient for this transfer",
+  "path": "/api/v1/transfers"
+}
+```
+
 ---
 
 ## 🧪 Test Stratejisi ve Doğrulama Disiplini
@@ -280,6 +329,15 @@ Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcon
 | **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **İnaktif Hesap Güvenliği:** Askıya alınmış (`SUSPENDED`) veya kapalı hesap | Transferin bloke edilmesi ve istisna fırlatılması |
 | **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Döviz Uyuşmazlığı:** TRY ile USD/EUR arası transfer engeli | Farklı para birimlerinin kilit sonrası reddedilmesi |
 | **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Kasa Para Girişi (Deposit):** Sistem kasasından alacaklandırma | Kasa hesabına `DEBIT`, müşteriye `CREDIT`, `DEP-` referans numarası teftişi |
+
+### `TransferConcurrencyIntegrationTest` Test Paketi (Testcontainers & PostgreSQL 16)
+
+Gerçek PostgreSQL 16 veritabanı konteyneri üzerinde **Testcontainers**, `ExecutorService` ve `CountDownLatch` ile eşzamanlı yarış durumları ve kilitleme test edilmiştir:
+
+| # | Eşzamanlılık Test Senaryosu | Concurrency Yükü | Doğrulanan Finansal Değişmez (Invariant) | Sonuç |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | `testDeadlockFreeCrossTransfersConcurrently` | **100 Eşzamanlı Thread**<br/>(50 thread: Hesap A $\rightarrow$ B)<br/>(50 thread: Hesap B $\rightarrow$ A) | **Sıfır Deadlock ve Bakiye Korunumu:**<br/>Alfabetik IBAN kilitleme sırası döngüsel deadlock'u engeller. 100 transferin tamamı hatasız tamamlanır. Toplam para kuruşu kuruşuna korunur ($\sum \text{Bakiyeler} = 20.000,0000 \text{ TRY}$). | `BAŞARILI` (0 Deadlock) |
+| **2** | `testDoubleSpendingPreventionConcurrently` | **50 Eşzamanlı Thread**<br/>(Tam 100 TRY bakiyesi olan hesaptan aynı anda 100 TRY çekmeye çalışan 50 thread) | **Yarış Durumu & Çift Harcama Engeli:**<br/>Satır düzeyinde `SELECT ... FOR UPDATE` kilidi sayesinde sadece 1 istek geçer. Kalan 49 istek `InsufficientBalanceException` ile anında reddedilir. Son bakiye kesin olarak `0,0000 TRY` kalır. | `BAŞARILI` (0 Açık Bakiye) |
 
 ---
 
@@ -341,9 +399,9 @@ docker compose up -d
 - [x] Transfer motoru (`TransferService.transfer` ve `TransferService.deposit`).
 - [x] Otomatik TR IBAN motoru ile Müşteri ve Hesap servisleri (`AccountService`, `CustomerService`).
 - [x] Mockito ile 8 senaryolu kapsamlı birim test zırhı (`TransferServiceTest`).
-- [ ] **REST Controller & Global Exception Handling:** HTTP katmanının (`@RestController`, `@ControllerAdvice`) tamamlanması.
-- [ ] **Testcontainers Concurrency Stres Testi:** 100 eşzamanlı thread ile gerçek PostgreSQL üzerinde Race Condition ve Deadlock testi.
-- [ ] **Finansal Ekstre ve Analiz Motoru:** Java Stream API (`groupingBy`, `reduce`) ile hesap hareketlerinin raporlanması.
+- [x] **REST Controller & Global Exception Handling:** HTTP katmanının (`@RestController`, `@ControllerAdvice`) ve `Idempotency-Key` kalkanının tamamlanması.
+- [x] **Testcontainers Concurrency Stres Testi:** 100 eşzamanlı thread ile gerçek PostgreSQL üzerinde Race Condition ve Deadlock testi.
+- [x] **Finansal Ekstre ve Analiz Motoru:** Java Stream API (`groupingBy`, `reduce`) ile hesap hareketlerinin raporlanması.
 - [ ] **Flyway Database Migration:** Şemanın otomatik versiyonlanması.
 
 ---
