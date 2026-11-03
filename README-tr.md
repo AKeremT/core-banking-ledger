@@ -225,10 +225,9 @@ core-banking-ledger/
 │               └── TransferServiceTest.java # 8 Kapsamlı Mockito Birim Test Senaryosu
 ├── docker-compose.yml                   # PostgreSQL 16 servis tanımı
 ├── pom.xml                              # Maven bağımlılıkları ve konfigürasyonlar
-├── core_banking_case_study_specification.md # Proje teknik şartnamesi
 ├── DATABASE_SCHEMA.md                   # Veritabanı ve DDL dokümantasyonu
-├── progress.md                          # Proje iterasyon ve tamamlanma günlüğü
-└── *.html                               # İnteraktif görsel mühendislik rehberleri
+├── README.md                            # İngilizce dokümantasyon
+└── README-tr.md                         # Türkçe ana dokümantasyon (bu dosya)
 ```
 
 ---
@@ -284,15 +283,11 @@ Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcon
 
 ---
 
-## 📚 İnteraktif Mühendislik Rehberleri
+## 📚 Mimari ve Şema Dokümantasyonu
 
-Repozituvarda, projenin tasarım ve mimari kararlarını detaylandıran interaktif HTML görsel dokümanları bulunmaktadır:
+Repozituvarda, projenin domain varlıklarını, çift taraflı muhasebe akışını ve PostgreSQL DDL şemasını detaylandıran teknik dokümantasyon bulunmaktadır:
 
-* 📄 **[`transfer_service_architecture_and_workflow_guide.html`](./transfer_service_architecture_and_workflow_guide.html):** 5 Güvenlik Kapısı, Deadlock-Free Lock Ordering, Kütüphaneci & Snapshot Dirty Checking analojisi.
-* 📄 **[`optimistic_vs_pessimistic_locking_guide.html`](./optimistic_vs_pessimistic_locking_guide.html):** Concurrency çatışma stratejileri, `@Version` mekanizması ve row-level `FOR UPDATE` karşılaştırması.
-* 📄 **[`repository_and_locking_guide.html`](./repository_and_locking_guide.html):** Spring Data JPA kilit anotasyonları, pessimistic write query'leri ve transactional sınırları.
-* 📄 **[`jpa_equals_and_hashcode_guide.html`](./jpa_equals_and_hashcode_guide.html):** Hibernate Proxy, Set güvenliği ve Business Key (`accountNumber`) tabanlı kimlik sözleşmesi.
-* 📄 **[`unit_testing_and_mockito_mastery_guide.html`](./unit_testing_and_mockito_mastery_guide.html):** Mockito birim test felsefesi, `verify` kontrolleri ve savunmacı test mimarisi.
+* 📄 **[`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md):** Detaylı veritabanı şeması, Mermaid ER diyagramları, çift taraflı muhasebe akışları, DDL kısıtları ve eşzamanlılık kilit mimarisi.
 
 ---
 
@@ -355,7 +350,7 @@ docker compose up -d
 
 ## 📝 Commit ve Geliştirme Standartları
 
-Bu proje, [`developer_study_workflow_dsa_blueprint.md`](../developer_study_workflow_dsa_blueprint.md) yönergesinde belirtilen **Conventional Commits** standardına sıkı sıkıya bağlı kalınarak geliştirilmektedir:
+Bu proje, **Conventional Commits** standardına sıkı sıkıya bağlı kalınarak geliştirilmektedir:
 
 * `feat(transfer): implement deadlock-free lock ordering for transfer pipeline`
 * `test(transfer): add comprehensive mockito unit tests for transfer and deposit`

@@ -4,6 +4,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Study Notes & Local Documentation ###
+*.html
+progress.md
+core_banking_case_study_specification.md
+DATABASE_SCHEMA_tr.md
+
 ### STS ###
 .apt_generated
 .classpath

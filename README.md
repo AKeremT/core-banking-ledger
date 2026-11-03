@@ -229,12 +229,9 @@ core-banking-ledger/
 │               └── TransferServiceTest.java # 8 Exhaustive Mockito Unit Test Scenarios
 ├── docker-compose.yml                   # PostgreSQL 16 container definition
 ├── pom.xml                              # Maven build descriptors and plugins
-├── core_banking_case_study_specification.md # Engineering requirements & specification
 ├── DATABASE_SCHEMA.md                   # Complete database DDL & architecture specs
-├── progress.md                          # Iteration diary & completion status
 ├── README.md                            # Primary English documentation (this file)
-├── README-tr.md                         # Turkish documentation
-└── *.html                               # Interactive visual technical study guides
+└── README-tr.md                         # Turkish documentation
 ```
 
 ---
@@ -290,15 +287,11 @@ Financial accuracy and defensive programming invariants are verified via **Mocki
 
 ---
 
-## 📚 Interactive Visual Technical Guides
+## 📚 Architecture & Schema Documentation
 
-The repository includes comprehensive, interactive HTML study guides illustrating the engineering decisions behind this system:
+The repository includes comprehensive technical documentation detailing domain entities, double-entry bookkeeping rules, and PostgreSQL DDL specifications:
 
-* 📄 **[`transfer_service_architecture_and_workflow_guide.html`](./transfer_service_architecture_and_workflow_guide.html):** The 5 Security Gates, Deadlock-Free Lock Ordering, and the Librarian & Snapshot Dirty Checking analogy.
-* 📄 **[`optimistic_vs_pessimistic_locking_guide.html`](./optimistic_vs_pessimistic_locking_guide.html):** Concurrency strategies, `@Version` mechanics vs. row-level `FOR UPDATE` queries.
-* 📄 **[`repository_and_locking_guide.html`](./repository_and_locking_guide.html):** Spring Data JPA lock modes, pessimistic locking, and transactional boundaries.
-* 📄 **[`jpa_equals_and_hashcode_guide.html`](./jpa_equals_and_hashcode_guide.html):** Hibernate Proxy safety, Set collection integrity, and Business Key (`accountNumber`) equality.
-* 📄 **[`unit_testing_and_mockito_mastery_guide.html`](./unit_testing_and_mockito_mastery_guide.html):** Mockito unit testing mastery, strict verification checks, and defensive assertions.
+* 📄 **[`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md):** Complete database schema, Mermaid ER diagrams, double-entry flowcharts, DDL constraints, and concurrency locking mechanics.
 
 ---
 
@@ -361,7 +354,7 @@ docker compose up -d
 
 ## 📝 Commit & Development Standards
 
-Development adheres strictly to the **Conventional Commits** specification defined in [`developer_study_workflow_dsa_blueprint.md`](../developer_study_workflow_dsa_blueprint.md):
+Development adheres strictly to the **Conventional Commits** specification:
 
 * `feat(transfer): implement deadlock-free lock ordering for transfer pipeline`
 * `test(transfer): add comprehensive mockito unit tests for transfer and deposit`
