@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-8%20Unit%20%7C%202%20Integration%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-9%20Unit%20%7C%202%20Integration%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -365,11 +365,11 @@ All business rule violations, missing entity lookups, and validation errors retu
 
 Financial accuracy and defensive programming invariants are verified via **Mockito Unit Tests** and **Testcontainers**.
 
-### `TransferServiceTest` Suite (8/8 Passing)
+### `TransferServiceTest` Suite (9/9 Passing)
 
 ```
 [INFO] Running com.akt.banking_v1.service.TransferServiceTest
-[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.253 s
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.092 s
 [INFO] BUILD SUCCESS
 ```
 
@@ -383,6 +383,7 @@ Financial accuracy and defensive programming invariants are verified via **Mocki
 | **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **Account Status Guard:** `SUSPENDED` / `CLOSED` accounts | Blocks execution immediately when account status is not `ACTIVE` |
 | **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Currency Parity Guard:** Mixed currency prevention | Prohibits cross-currency transfers (e.g., TRY to USD/EUR) |
 | **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Vault Deposit:** System cash injection | Debits Central Vault, credits customer account, confirms `DEP-` receipt format |
+| **9** | `withdraw_whenValidRequest_shouldWithdrawSuccessfully` | **Vault Withdrawal:** Cash payout | Debits customer account, credits Central Vault, enforces balance check, and confirms `WDR-` receipt format |
 
 ### `TransferConcurrencyIntegrationTest` Suite (Testcontainers & PostgreSQL 16)
 
@@ -452,22 +453,15 @@ docker compose up -d
 - [x] Jakarta Bean Validation Record DTOs and domain exception hierarchy.
 - [x] Core fund transfer engine (`TransferService.transfer` & `TransferService.deposit`).
 - [x] Collision-guarded Turkish IBAN generator, customer and account onboarding services.
-- [x] Exhaustive Mockito unit testing suite (`TransferServiceTest` - 8/8 passing).
+- [x] Exhaustive Mockito unit testing suite (`TransferServiceTest` - 9/9 passing).
 - [x] **REST Controllers & Global Exception Handler:** `@RestController` and `@ControllerAdvice` presentation layer with `Idempotency-Key` shield.
 - [x] **Testcontainers Concurrency Stress Suite:** 100 concurrent threads testing race conditions & deadlock freedom on real PostgreSQL 16.
 - [x] **Financial Statement & Analytics Engine:** Java Stream API aggregations (`groupingBy`, `reduce`) for account statements.
-- [ ] **Flyway Database Migration:** Automated versioned DDL scripts.
-
----
-
-## 📝 Commit & Development Standards
-
-Development adheres strictly to the **Conventional Commits** specification:
-
-* `feat(transfer): implement deadlock-free lock ordering for transfer pipeline`
-* `test(transfer): add comprehensive mockito unit tests for transfer and deposit`
-* `docs(readme): add comprehensive project documentation with architecture diagrams and workflows`
-* `chore(db): configure postgresql 16 docker compose and datasource`
+- [x] **Withdrawal Operation:** Debit customer, credit vault with deadlock-free lock ordering (`TransferService.withdraw`).
+- [x] **Flyway Database Migration:** Automated versioned physical DDL scripts (`V1__init_schema.sql`, `ddl-auto=validate`).
+- [x] **OpenAPI 3 / Swagger Documentation:** Interactive API documentation via `springdoc-openapi` 3.2.0.
+- [ ] **Spring Security & JWT (RBAC):** Role-Based Access Control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`) and stateless JWT filter chain.
+- [ ] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
 
 ---
 

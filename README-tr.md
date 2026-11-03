@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-8%20Birim%20%7C%202%20Entegrasyon%20Başarılı-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-9%20Birim%20%7C%202%20Entegrasyon%20Başarılı-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -361,11 +361,11 @@ Tüm iş kuralı ihlalleri, bulunamayan kayıtlar ve validasyon hataları RFC-78
 
 Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcontainers** altyapısıyla garanti altına alınmıştır.
 
-### `TransferServiceTest` Kapsamı (8/8 Başarılı)
+### `TransferServiceTest` Kapsamı (9/9 Başarılı)
 
 ```
 [INFO] Running com.akt.banking_v1.service.TransferServiceTest
-[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.253 s
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.092 s
 [INFO] BUILD SUCCESS
 ```
 
@@ -379,6 +379,7 @@ Sistem kalitesi ve finansal doğruluğu, **Mockito Birim Testleri** ve **Testcon
 | **6** | `transfer_whenAccountIsInactive_shouldThrowAccountInactiveException` | **İnaktif Hesap Güvenliği:** Askıya alınmış (`SUSPENDED`) veya kapalı hesap | Transferin bloke edilmesi ve istisna fırlatılması |
 | **7** | `transfer_whenCurrencyMismatch_shouldThrowCurrencyMismatchException` | **Döviz Uyuşmazlığı:** TRY ile USD/EUR arası transfer engeli | Farklı para birimlerinin kilit sonrası reddedilmesi |
 | **8** | `deposit_whenValidRequest_shouldDepositSuccessfully` | **Kasa Para Girişi (Deposit):** Sistem kasasından alacaklandırma | Kasa hesabına `DEBIT`, müşteriye `CREDIT`, `DEP-` referans numarası teftişi |
+| **9** | `withdraw_whenValidRequest_shouldWithdrawSuccessfully` | **Para Çekme (Withdraw):** Müşteriden nakit çekim | Müşteri hesabına `DEBIT`, Kasa hesabına `CREDIT`, bakiye kontrolü ve `WDR-` dekont teftişi |
 
 ### `TransferConcurrencyIntegrationTest` Test Paketi (Testcontainers & PostgreSQL 16)
 
@@ -448,22 +449,15 @@ docker compose up -d
 - [x] Jakarta Bean Validation destekli Record DTO'lar ve istisna hiyerarşisi.
 - [x] Transfer motoru (`TransferService.transfer` ve `TransferService.deposit`).
 - [x] Otomatik TR IBAN motoru ile Müşteri ve Hesap servisleri (`AccountService`, `CustomerService`).
-- [x] Mockito ile 8 senaryolu kapsamlı birim test zırhı (`TransferServiceTest`).
+- [x] Mockito ile 9 senaryolu kapsamlı birim test zırhı (`TransferServiceTest` - 9/9 Başarılı).
 - [x] **REST Controller & Global Exception Handling:** HTTP katmanının (`@RestController`, `@ControllerAdvice`) ve `Idempotency-Key` kalkanının tamamlanması.
 - [x] **Testcontainers Concurrency Stres Testi:** 100 eşzamanlı thread ile gerçek PostgreSQL üzerinde Race Condition ve Deadlock testi.
 - [x] **Finansal Ekstre ve Analiz Motoru:** Java Stream API (`groupingBy`, `reduce`) ile hesap hareketlerinin raporlanması.
-- [ ] **Flyway Database Migration:** Şemanın otomatik versiyonlanması.
-
----
-
-## 📝 Commit ve Geliştirme Standartları
-
-Bu proje, **Conventional Commits** standardına sıkı sıkıya bağlı kalınarak geliştirilmektedir:
-
-* `feat(transfer): implement deadlock-free lock ordering for transfer pipeline`
-* `test(transfer): add comprehensive mockito unit tests for transfer and deposit`
-* `docs(readme): add extensive documentation with architecture diagrams and workflows`
-* `chore(db): configure postgresql 16 docker compose and datasource`
+- [x] **Para Çekme (Withdrawal) Operasyonu:** Müşteri hesabı borçlandırılır, kasa alacaklandırılır (`TransferService.withdraw`).
+- [x] **Flyway Database Migration:** Şemanın fiziksel SQL scriptleri ile versiyonlanması (`V1__init_schema.sql`, `ddl-auto=validate`).
+- [x] **OpenAPI 3 / Swagger Dokümantasyonu:** `springdoc-openapi` 3.2.0 ile interaktif canlı test arayüzü (`/swagger-ui.html`).
+- [ ] **Spring Security & JWT (RBAC):** Rol tabanlı yetkilendirme (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`) ve stateless JWT filtre zinciri.
+- [ ] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
 
 ---
 
