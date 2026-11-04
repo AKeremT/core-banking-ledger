@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -39,6 +40,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Customer not found")
     })
     @PostMapping
+    @PreAuthorize("hasRole('TELLER')")
     public ResponseEntity<AccountResponse> createAccount(@RequestBody @Valid CreateAccountRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(accountService.createAccount(request));
@@ -50,6 +52,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @GetMapping("/{accountNumber}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'TELLER')")
     public ResponseEntity<AccountResponse> getAccount(
             @Parameter(description = "Account number / IBAN", example = "TR330006100511123456789012")
             @PathVariable("accountNumber") String accountNumber) {
@@ -63,6 +66,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Customer not found")
     })
     @GetMapping("/customer/{customerId}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'TELLER')")
     public ResponseEntity<List<AccountResponse>> getAccountByCustomer(@PathVariable("customerId") Long customerId) {
 
         return ResponseEntity.ok(accountService.getAccountsByCustomerId(customerId));
@@ -78,6 +82,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @GetMapping("/{accountNumber}/statement")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'TELLER')")
     public ResponseEntity<AccountStatementResponse> getStatement(
             @Parameter(description = "Account number / IBAN", example = "TR330006100511123456789012")
             @PathVariable String accountNumber,

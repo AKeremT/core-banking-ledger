@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,6 +30,7 @@ public class CustomerController {
             @ApiResponse(responseCode = "409", description = "Identity number or email already exists")
     })
     @PostMapping
+    @PreAuthorize("hasRole('TELLER')")
     public ResponseEntity<CustomerResponse> createCustomer(@RequestBody @Valid CreateCustomerRequest request){
 
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.createCustomer(request));
@@ -40,6 +42,7 @@ public class CustomerController {
             @ApiResponse(responseCode = "404", description = "Customer not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'TELLER')")
     public ResponseEntity<CustomerResponse> getCustomer(
             @Parameter(description = "Customer ID", example = "1")
             @PathVariable Long id){
@@ -53,6 +56,7 @@ public class CustomerController {
             @ApiResponse(responseCode = "404", description = "Customer not found")
     })
     @GetMapping("/identity/{identityNumber}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'TELLER')")
     public ResponseEntity<CustomerResponse> getCustomerById(
             @Parameter(description = "11-digit Turkish National ID or Tax ID", example = "12345678901")
             @PathVariable("identityNumber") String identityNumber){

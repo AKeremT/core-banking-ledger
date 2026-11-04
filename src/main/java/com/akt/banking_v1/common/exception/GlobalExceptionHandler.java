@@ -85,6 +85,19 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler({io.jsonwebtoken.JwtException.class,
+    org.springframework.security.core.AuthenticationException.class})
+    public ResponseEntity<ErrorResponse> handleJwtException(Exception ex, HttpServletRequest request) {
+
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid or expired token: " + ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(Exception ex, HttpServletRequest request) {
+
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied: You do not have permission for this resource", request);
+    }
+
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message,
                                                         HttpServletRequest request) {
 
