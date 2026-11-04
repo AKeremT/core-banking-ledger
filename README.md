@@ -440,7 +440,7 @@ docker compose up -d
 # Linux / macOS
 ./mvnw spring-boot:run
 ```
-> On boot, `DataInitializer` seeds the **System Customer** and the 1 Billion TRY **System Bank Vault Account** (`TR000000000000000000000001`) automatically.
+> On boot, `DataInitializer` seeds the **System Customer**, the 1 Billion TRY **System Bank Vault Account** (`TR000000000000000000000001`), and default role-based test users (`system_admin`, `teller_user`, `customer_user`) automatically.
 
 ---
 
@@ -458,10 +458,11 @@ docker compose up -d
 - [x] **Testcontainers Concurrency Stress Suite:** 100 concurrent threads testing race conditions & deadlock freedom on real PostgreSQL 16.
 - [x] **Financial Statement & Analytics Engine:** Java Stream API aggregations (`groupingBy`, `reduce`) for account statements.
 - [x] **Withdrawal Operation:** Debit customer, credit vault with deadlock-free lock ordering (`TransferService.withdraw`).
-- [x] **Flyway Database Migration:** Automated versioned physical DDL scripts (`V1__init_schema.sql`, `ddl-auto=validate`).
+- [x] **Flyway Database Migration:** Automated versioned physical DDL scripts (`V1__init_schema.sql`, `V2__create_users_table.sql`, `ddl-auto=validate`).
 - [x] **OpenAPI 3 / Swagger Documentation:** Interactive API documentation via `springdoc-openapi` 3.2.0.
-- [ ] **Spring Security & JWT (RBAC):** Role-Based Access Control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`) and stateless JWT filter chain.
+- [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filter (`OncePerRequestFilter`), method-level security (`@EnableMethodSecurity`, `@PreAuthorize`), role-based access control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 migration, and secure authentication endpoint (`/api/v1/auth/login`).
 - [ ] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
+- [ ] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries.
 
 ---
 
