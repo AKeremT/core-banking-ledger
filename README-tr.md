@@ -235,11 +235,18 @@ core-banking-ledger/
 │           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Yarış Durumu Testleri
 │           └── service/
 │               └── TransferServiceTest.java # 8 Kapsamlı Mockito Birim Test Senaryosu
-├── docker-compose.yml                   # PostgreSQL 16 servis tanımı
-├── pom.xml                              # Maven bağımlılıkları ve konfigürasyonlar
-├── DATABASE_SCHEMA.md                   # Veritabanı ve DDL dokümantasyonu
-├── README.md                            # İngilizce dokümantasyon
-└── README-tr.md                         # Türkçe ana dokümantasyon (bu dosya)
+├── docker/
+│   ├── prometheus/
+│   │   └── prometheus.yml          # Prometheus scrape hedefleri ve 5sn aralık ayarı
+│   └── grafana/
+│       └── provisioning/
+│           └── datasources/
+│               └── datasource.yml  # Otomatik bağlanan Prometheus veri kaynağı
+├── docker-compose.yml              # PostgreSQL 16, Prometheus & Grafana orkestrasyonu
+├── pom.xml                         # Maven bağımlılıkları ve konfigürasyonlar
+├── DATABASE_SCHEMA.md              # Veritabanı ve DDL dokümantasyonu
+├── README.md                       # İngilizce dokümantasyon
+└── README-tr.md                    # Türkçe ana dokümantasyon (bu dosya)
 ```
 
 ---
@@ -301,6 +308,30 @@ Sunum katmanı; Jakarta Bean Validation teftişli, client idempotency korumalı 
 Uygulama ayağa kalktığında `http://localhost:8080/swagger-ui.html` adresinden erişilebilen tam interaktif API arayüzü:
 
 ![Swagger UI Documentation](./docs/images/swagger-ui.png)
+
+---
+
+### 📈 Üretim Seviyesi Gözlemlenebilirlik ve Canlı İzleme (Prometheus & Grafana)
+
+Fintech ve kurumsal bankacılık standartlarında sistemin iç durumunu, bağlantı havuzlarını ve yük tepkilerini anlık takip etmek üzere **Spring Boot Actuator**, **Micrometer**, **Prometheus** ve **Grafana** entegrasyonu tamamlanmıştır:
+
+* **Metrik & Scrape Pipeline:** Micrometer; JVM bellek, HikariCP bağlantı havuzu ve HTTP istek sürelerini otomatik ölçer. Prometheus bu verileri her 5 saniyede bir `http://host.docker.internal:8080/actuator/prometheus` üzerinden çeker.
+* **Sıfır Konfigürasyonla Başlatma (Auto-Provisioning):** Grafana ayağa kalktığında Prometheus veri kaynağını `docker/grafana/provisioning/datasources/datasource.yml` üzerinden otomatik olarak bağlar.
+* **Kubernetes Cloud-Native Probe'ları:** Sıfır kesintili pod yönetimi için `/actuator/health/liveness` ve `/actuator/health/readiness` uçları açıktır.
+* **Granüler Güvenlik Katmanı:** Orkestrasyon ve metrik çekiciler için `/actuator/health/**`, `/actuator/info` ve `/actuator/prometheus` halka açık (`permitAll`) iken, hassas iç metrikler (`/actuator/**`) yalnızca `ROLE_SYSTEM` kullanıcısına açıktır.
+
+#### 1.000 Eşzamanlı İstek Altında Canlı Grafana İzleme
+
+5 dalga halinde gönderilen 1.000 adet eşzamanlı istek (500 BCrypt şifre hash'leme + 500 veritabanı sağlık kontrolü) **9.7 saniyede** ve **%0.0 hata oranıyla** işlenirken kaydedilen canlı Grafana telemetrisi:
+
+![Grafana Canlı İzleme Panosu](./docs/images/grafana_log.png)
+
+| Telemetri Boyutu | Gözlemlenen Sistem Davranışı | Mühendislik Değerlendirmesi |
+| :--- | :--- | :--- |
+| **Throughput (İstek/sn)** | Kesintisiz yüksek hacimli plato | Asenkron HTTP sunucusu thread açlığı (starvation) yaşamadan 1.000 isteği başarıyla sıraya alıp tamamladı. |
+| **İşlemci (CPU) Kullanımı** | Kimlik doğrulama dalgalarında keskin sıçrama | BCrypt tuzlu hash algoritması (`strength 10`), brute-force saldırılarına direnmek için CPU çekirdeklerini planlı şekilde meşgul etti. |
+| **JVM Heap Belleği** | Belirgin testere dişi (sawtooth) döngüsü | Üretilen geçici DTO ve JSON nesneleri, bellek sızıntısı olmadan Garbage Collector (GC) tarafından anında geri kazanıldı. |
+| **HikariCP Bağlantı Havuzu** | Sıfır havuz tükenmesi | Doğal kilit sıralaması (`compareTo`) ve hızlı veritabanı commit'leri bağlantı kuyruğunun şişmesini engelledi. |
 
 ---
 
@@ -413,11 +444,14 @@ git clone https://github.com/AKeremT/core-banking-ledger.git
 cd core-banking-ledger
 ```
 
-### 2. Veritabanını Docker ile Ayağa Kaldırın
+### 2. Altyapıyı Docker Compose ile Ayağa Kaldırın
 ```bash
 docker compose up -d
 ```
-> PostgreSQL servisi `localhost:5432` üzerinde, `core_banking_ledger` veritabanı adı, `akt` kullanıcı adı ve `akt` parolasıyla hazır hale gelecektir.
+> Aşağıdaki servisleri ayağa kaldırır:
+> * **PostgreSQL 16:** `localhost:5432` üzerinde hazır (`core_banking_ledger`, kullanıcı/şifre: `akt`/`akt`).
+> * **Prometheus:** `http://localhost:9090` üzerinde çalışır (Spring Boot'u her 5 saniyede bir scrape eder).
+> * **Grafana:** `http://localhost:3000` üzerinde açılır (kullanıcı/şifre: `admin`/`admin`, Prometheus veri kaynağı hazır bağlanmıştır).
 
 ### 3. Testleri Koşturun
 ```bash

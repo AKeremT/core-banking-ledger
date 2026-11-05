@@ -239,11 +239,18 @@ core-banking-ledger/
 │           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Race Condition Tests
 │           └── service/
 │               └── TransferServiceTest.java # 8 Exhaustive Mockito Unit Test Scenarios
-├── docker-compose.yml                   # PostgreSQL 16 container definition
-├── pom.xml                              # Maven build descriptors and plugins
-├── DATABASE_SCHEMA.md                   # Complete database DDL & architecture specs
-├── README.md                            # Primary English documentation (this file)
-└── README-tr.md                         # Turkish documentation
+├── docker/
+│   ├── prometheus/
+│   │   └── prometheus.yml          # Prometheus scrape targets & 5s interval config
+│   └── grafana/
+│       └── provisioning/
+│           └── datasources/
+│               └── datasource.yml  # Zero-touch auto-provisioned Prometheus datasource
+├── docker-compose.yml              # PostgreSQL 16, Prometheus & Grafana stack
+├── pom.xml                         # Maven build descriptors and plugins
+├── DATABASE_SCHEMA.md              # Complete database DDL & architecture specs
+├── README.md                       # Primary English documentation (this file)
+└── README-tr.md                    # Turkish documentation
 ```
 
 ---
@@ -305,6 +312,30 @@ The presentation layer exposes RESTful endpoints with strict Jakarta Bean Valida
 When the application boots, the interactive Swagger UI documentation is accessible at `http://localhost:8080/swagger-ui.html`:
 
 ![Swagger UI Documentation](./docs/images/swagger-ui.png)
+
+---
+
+### 📈 Production Observability & Real-Time Monitoring (Prometheus & Grafana)
+
+To fulfill strict fintech observability and telemetry standards, the ledger engine integrates **Spring Boot Actuator**, **Micrometer**, **Prometheus**, and **Grafana**:
+
+* **Metrics & Scrape Pipeline:** Micrometer instruments the JVM, HikariCP database connection pool, and HTTP request timings. Prometheus scrapes metrics every 5 seconds via `http://host.docker.internal:8080/actuator/prometheus`.
+* **Zero-Touch Provisioning:** Grafana automatically provisions the Prometheus datasource upon startup via `docker/grafana/provisioning/datasources/datasource.yml`.
+* **Kubernetes Cloud-Native Probes:** `/actuator/health/liveness` and `/actuator/health/readiness` ensure zero-downtime container orchestration.
+* **Granular Security Perimeter:** Public access is granted exclusively to orchestration and scraping targets (`/actuator/health/**`, `/actuator/info`, `/actuator/prometheus`), while sensitive telemetry (`/actuator/**`) strictly enforces `ROLE_SYSTEM`.
+
+#### Live Grafana Monitoring Under 1,000 Concurrent Requests
+
+Real-time telemetry captured during a sustained multi-wave stress test of 1,000 concurrent requests (500 BCrypt password hashes + 500 database health checks) processed in 9.7 seconds with a **0.0% failure rate**:
+
+![Grafana Real-Time Monitoring Dashboard](./docs/images/grafana_log.png)
+
+| Telemetry Dimension | Observed System Behavior | Engineering Insight |
+| :--- | :--- | :--- |
+| **Throughput (RPS)** | Sustained high-volume plateau | The asynchronous HTTP server efficiently queued and completed 1,000 requests without thread starvation. |
+| **CPU Utilization** | Acute spike during authentication waves | BCrypt salt hashing (`BCryptPasswordEncoder`, strength 10) intentionally exercises CPU cores to resist brute-force attacks. |
+| **JVM Heap Memory** | Distinct sawtooth allocation pattern | Ephemeral DTO and JSON allocations trigger immediate, predictable Garbage Collection (GC) reclamation without memory leaks. |
+| **HikariCP Pool** | Zero connection exhaustion | Natural lock ordering (`compareTo`) and rapid database transactions prevent connection pool contention. |
 
 ---
 
@@ -417,11 +448,14 @@ git clone https://github.com/AKeremT/core-banking-ledger.git
 cd core-banking-ledger
 ```
 
-### 2. Launch PostgreSQL via Docker Compose
+### 2. Launch Infrastructure via Docker Compose
 ```bash
 docker compose up -d
 ```
-> Starts a PostgreSQL 16 container accessible on `localhost:5432` with database `core_banking_ledger`, username `akt`, and password `akt`.
+> Starts:
+> * **PostgreSQL 16:** Accessible on `localhost:5432` (`core_banking_ledger`, user/password: `akt`/`akt`).
+> * **Prometheus:** Accessible on `http://localhost:9090` (Scrapes Spring Boot every 5 seconds).
+> * **Grafana:** Accessible on `http://localhost:3000` (user/password: `admin`/`admin`, pre-configured Prometheus datasource).
 
 ### 3. Run the Test Suite
 ```bash
