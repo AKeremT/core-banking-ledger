@@ -533,6 +533,9 @@ docker compose up -d
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filter (`OncePerRequestFilter`), method-level security (`@EnableMethodSecurity`, `@PreAuthorize`), role-based access control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 migration, and secure authentication endpoint (`/api/v1/auth/login`).
 - [x] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
 - [ ] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries.
+- [ ] **Production Multi-Stage Dockerfile:** Containerize the Spring Boot application using lightweight Alpine/Distroless image integrated into `docker-compose.yml`.
+- [ ] **GitHub Actions CI/CD Pipeline:** Automated build, Testcontainers integration testing, and status badge verification on every push (`.github/workflows/ci.yml`).
+- [ ] **Hardcore Senior Fintech Mock Interview:** Comprehensive architectural defense and technical interview covering concurrency, double-entry bookkeeping, security, and observability before transitioning to the next production-ready project.
 
 ---
 

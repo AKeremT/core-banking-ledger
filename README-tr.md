@@ -529,6 +529,9 @@ docker compose up -d
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filtre mimarisi (`OncePerRequestFilter`), metot seviyesinde güvenlik (`@EnableMethodSecurity`, `@PreAuthorize`), rol tabanlı erişim denetimi (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 kullanıcı şeması ve kimlik doğrulama (`/api/v1/auth/login`).
 - [x] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
 - [ ] **Güvenlik Entegrasyon Testleri:** `@WithMockUser` ile 401 Unauthorized, 403 Forbidden ve 200/201 yetki sınırlarının otomatik MockMvc testleri.
+- [ ] **Üretime Hazır Çok Aşamalı Dockerfile (Multi-Stage):** Spring Boot uygulamasının hafif Alpine/Distroless tabanlı imajla konteynerize edilip `docker-compose.yml` ağına dahil edilmesi.
+- [ ] **GitHub Actions CI/CD Pipeline:** Her push işleminde otomatik derleme, Testcontainers entegrasyon testleri ve durum rozeti (badge) kontrolü (`.github/workflows/ci.yml`).
+- [ ] **Hardcore Senior Fintech Teknik Mülakatı:** Yeni sektörel projeye geçmeden önce concurrency, double-entry bookkeeping, locking, security ve observability katmanlarını kapsayan acımasız teknik savunma mülakatı.
 
 ---
 
