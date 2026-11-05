@@ -174,6 +174,17 @@ The project follows Clean & Layered Architecture standards:
 ```text
 core-banking-ledger/
 ├── .mvn/                                # Maven wrapper configuration
+├── docker/
+│   ├── prometheus/
+│   │   └── prometheus.yml          # Prometheus scrape targets & 5s interval config
+│   └── grafana/
+│       └── provisioning/
+│           └── datasources/
+│               └── datasource.yml  # Zero-touch auto-provisioned Prometheus datasource
+├── docs/
+│   └── images/
+│       ├── swagger-ui.png          # Interactive Swagger UI screenshot
+│       └── grafana_log.png         # Live Grafana dashboard under 1,000 requests
 ├── src/
 │   ├── main/
 │   │   ├── java/com/akt/banking_v1/
@@ -190,46 +201,62 @@ core-banking-ledger/
 │   │   │   │       ├── CustomerNotFoundException.java
 │   │   │   │       └── GlobalExceptionHandler.java
 │   │   │   ├── config/
-│   │   │   │   └── DataInitializer.java # Auto-seeds System Vault Customer & TRY Account
-│   │   │   ├── controller/              # REST API presentation layer
-│   │   │   │   ├── TransferController.java # Idempotent transfer & deposit endpoints
+│   │   │   │   ├── DataInitializer.java    # Seeds System Vault Account & Default RBAC Users
+│   │   │   │   ├── OpenApiConfig.java      # OpenAPI 3 / Swagger documentation setup
+│   │   │   │   ├── SecurityConfig.java     # Security filter chain, CORS, Session & First-Match-Wins rules
+│   │   │   │   └── SecurityProperties.java # Type-safe @ConfigurationProperties for JWT
+│   │   │   ├── controller/                 # REST API presentation layer
+│   │   │   │   ├── AuthController.java     # JWT authentication & login endpoints
+│   │   │   │   ├── TransferController.java # Idempotent transfer, deposit & withdrawal endpoints
 │   │   │   │   ├── AccountController.java  # Account onboarding & statement endpoints
 │   │   │   │   └── CustomerController.java # Customer onboarding & query endpoints
-│   │   │   ├── dto/                     # Jakarta Validation-guarded Record DTOs
+│   │   │   ├── dto/                        # Jakarta Validation-guarded Record DTOs
+│   │   │   │   ├── LoginRequest.java / AuthResponse.java
 │   │   │   │   ├── TransferRequest.java / TransferResponse.java
 │   │   │   │   ├── CreateAccountRequest.java / AccountResponse.java
 │   │   │   │   ├── CreateCustomerRequest.java / CustomerResponse.java
-│   │   │   │   ├── DepositRequest.java
+│   │   │   │   ├── DepositRequest.java / WithdrawRequest.java
 │   │   │   │   ├── AccountStatementResponse.java / StatementItemResponse.java
 │   │   │   │   └── ErrorResponse.java
-│   │   │   ├── enums/                   # Type-safe financial domain states
+│   │   │   ├── enums/                      # Type-safe financial domain states & roles
+│   │   │   │   ├── Role.java (CUSTOMER, TELLER, SYSTEM)
 │   │   │   │   ├── Currency.java (TRY, USD, EUR)
 │   │   │   │   ├── AccountStatus.java (ACTIVE, SUSPENDED, CLOSED)
 │   │   │   │   ├── AccountType.java (CHECKING, SAVINGS)
 │   │   │   │   ├── TransactionType.java (INTERNAL_TRANSFER, DEPOSIT, WITHDRAW)
 │   │   │   │   ├── TransactionStatus.java (PENDING, COMPLETED, FAILED)
 │   │   │   │   └── EntryType.java (DEBIT, CREDIT)
-│   │   │   ├── mapper/                  # Decoupled entity-to-DTO converters
+│   │   │   ├── mapper/                     # Decoupled entity-to-DTO converters
 │   │   │   │   ├── TransferMapper.java
 │   │   │   │   ├── AccountMapper.java
 │   │   │   │   └── CustomerMapper.java
-│   │   │   ├── model/                   # JPA Entities (Double-entry domain)
+│   │   │   ├── model/                      # JPA Entities (Double-entry domain & Security)
 │   │   │   │   ├── Customer.java
 │   │   │   │   ├── Account.java
 │   │   │   │   ├── Transaction.java
-│   │   │   │   └── LedgerEntry.java
-│   │   │   ├── repository/              # Spring Data JPA repositories with lock queries
+│   │   │   │   ├── LedgerEntry.java
+│   │   │   │   └── User.java               # Implements UserDetails for Spring Security
+│   │   │   ├── repository/                 # Spring Data JPA repositories with lock queries
 │   │   │   │   ├── CustomerRepository.java
-│   │   │   │   ├── AccountRepository.java (findByAccountNumberWithLock)
-│   │   │   │   ├── TransactionRepository.java (findByIdempotencyKey)
-│   │   │   │   └── LedgerEntryRepository.java (findByAccountIdAndDateRange)
-│   │   │   └── service/                 # Core financial engines
-│   │   │       ├── TransferService.java # Transfer, Deposit, Lock Ordering, Idempotency
-│   │   │       ├── AccountService.java  # Account onboarding, 26-char TR IBAN generator
-│   │   │       ├── CustomerService.java # Customer onboarding & uniqueness verification
-│   │   │       └── AccountStatementService.java # Stream API statements & financial analytics
+│   │   │   │   ├── AccountRepository.java  # findByAccountNumberWithLock (Pessimistic Write)
+│   │   │   │   ├── TransactionRepository.java # findByIdempotencyKey
+│   │   │   │   ├── LedgerEntryRepository.java # findByAccountIdAndDateRange
+│   │   │   │   └── UserRepository.java     # findByUsername, existsByUsername
+│   │   │   ├── security/                   # Pure Stateless Security Filter
+│   │   │   │   └── JwtAuthenticationFilter.java # OncePerRequestFilter for Bearer JWT
+│   │   │   └── service/                    # Core financial & authentication engines
+│   │   │       ├── TransferService.java    # Transfer, Deposit, Withdraw, Lock Ordering, Idempotency
+│   │   │       ├── AccountService.java     # Account onboarding, 26-char TR IBAN generator
+│   │   │       ├── CustomerService.java    # Customer onboarding & uniqueness verification
+│   │   │       ├── AccountStatementService.java # Stream API statements & financial analytics
+│   │   │       ├── AuthService.java        # Authentication orchestration & token issue
+│   │   │       ├── CustomUserDetailsService.java # UserDetails loader for DaoAuthenticationProvider
+│   │   │       └── JwtService.java         # JJWT 0.12 cryptographic signature & claims parser
 │   │   └── resources/
-│   │       └── application.properties   # Connection pool, Hibernate, and DDL config
+│   │       ├── application.properties      # Connection pool, Hibernate, JWT, and Actuator config
+│   │       └── db/migration/               # Flyway automated physical DDL migrations
+│   │           ├── V1__init_schema.sql     # Baseline financial schema & check constraints
+│   │           └── V2__create_users_table.sql # Users table & role indexing
 │   └── test/
 │       └── java/com/akt/banking_v1/
 │           ├── BankingV1ApplicationTests.java
@@ -238,19 +265,12 @@ core-banking-ledger/
 │           ├── integration/
 │           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Race Condition Tests
 │           └── service/
-│               └── TransferServiceTest.java # 8 Exhaustive Mockito Unit Test Scenarios
-├── docker/
-│   ├── prometheus/
-│   │   └── prometheus.yml          # Prometheus scrape targets & 5s interval config
-│   └── grafana/
-│       └── provisioning/
-│           └── datasources/
-│               └── datasource.yml  # Zero-touch auto-provisioned Prometheus datasource
-├── docker-compose.yml              # PostgreSQL 16, Prometheus & Grafana stack
-├── pom.xml                         # Maven build descriptors and plugins
-├── DATABASE_SCHEMA.md              # Complete database DDL & architecture specs
-├── README.md                       # Primary English documentation (this file)
-└── README-tr.md                    # Turkish documentation
+│               └── TransferServiceTest.java # 9 Exhaustive Mockito Unit Test Scenarios
+├── docker-compose.yml                      # PostgreSQL 16, Prometheus & Grafana stack
+├── pom.xml                                 # Maven build descriptors and plugins
+├── DATABASE_SCHEMA.md                      # Complete database DDL & architecture specs
+├── README.md                               # Primary English documentation (this file)
+└── README-tr.md                            # Turkish documentation
 ```
 
 ---
@@ -270,6 +290,9 @@ core-banking-ledger/
 * **`deposit(DepositRequest, idempotencyKey)`:**
   * Uses the internal **`DataInitializer.SYSTEM_TRY_ACCOUNT` (Central Bank Vault Account)** as the funding source.
   * Debits the vault account (`DEBIT`) and credits the customer account (`CREDIT`), maintaining $\sum \text{DEBIT} = \sum \text{CREDIT}$. Generates a `DEP-YYYYMMDD-UUID8` reference ID.
+* **`withdraw(WithdrawRequest, idempotencyKey)`:**
+  * Debits the customer account (`DEBIT`) and credits the Central Vault account (`CREDIT`), maintaining double-entry balance.
+  * Enforces deterministic lock ordering (`compareTo`) and strict solvency checks (`InsufficientBalanceException`). Generates a `WDR-YYYYMMDD-UUID8` reference ID.
 
 ### 2. `AccountService` (Onboarding & IBAN Engine)
 * **Turkish IBAN Generation:** Uses `ThreadLocalRandom` to generate authentic 26-character Turkish IBANs (`TR` + 24 numeric digits).
@@ -286,24 +309,37 @@ core-banking-ledger/
   $$\text{Net Cash Flow} = \sum \text{CREDIT} - \sum \text{DEBIT}$$
 * **Breakdown by Transaction Type:** Dynamically categorizes line items by `TransactionType` (`INTERNAL_TRANSFER`, `DEPOSIT`, `WITHDRAW`) for clear debit/credit attribution.
 
+### 5. `AuthService` & Security Architecture (JWT & RBAC)
+* **Pure Stateless Authentication:** Pure stateless JWT issuance via JJWT 0.12 fluent API with custom role claims and cryptographic signature verification.
+* **Declarative Method Security (`@PreAuthorize`):** Granular role-based access control protecting controller operations:
+  * `ROLE_CUSTOMER`: Accesses customer statements and personal balance inquiries.
+  * `ROLE_TELLER`: Authorized for branch deposit, withdrawal, account onboarding, and cross-customer transfers.
+  * `ROLE_SYSTEM`: Technical service authority for vault initialization and low-level internal telemetry (`/actuator/**`).
+
 ---
 
 ## 🌐 REST API Specification
 
 The presentation layer exposes RESTful endpoints with strict Jakarta Bean Validation, client idempotency enforcement, and RFC-7807 structured error responses:
 
-| Method | Endpoint | Required Headers | Description | Status Code |
+| Method | Endpoint | Required Headers / Body | Description | Status Code |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/transfers` | `Idempotency-Key` | Executes bilateral account-to-account transfer | `200 OK` |
-| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Injects cash deposit via System Central Vault | `200 OK` |
-| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` | Withdraws cash from account (Debits Customer, Credits Vault) | `200 OK` |
-| `POST` | `/api/v1/accounts` | - | Opens a new bank account with TR IBAN | `201 CREATED` |
-| `GET` | `/api/v1/accounts/{accountNumber}` | - | Retrieves account summary and real-time balance | `200 OK` |
-| `GET` | `/api/v1/accounts/customer/{customerId}` | - | Lists all accounts owned by a customer | `200 OK` |
-| `GET` | `/api/v1/accounts/{accountNumber}/statement` | - | Generates date-ranged financial statement & net cash flow | `200 OK` |
-| `POST` | `/api/v1/customers` | - | Onboards a new retail customer (TCKN/Email) | `201 CREATED` |
-| `GET` | `/api/v1/customers/{id}` | - | Retrieves customer profile by primary key | `200 OK` |
-| `GET` | `/api/v1/customers/identity/{identityNumber}` | - | Looks up customer by national identity / tax ID | `200 OK` |
+| `POST` | `/api/v1/auth/login` | `LoginRequest` (username, password) | Authenticates credentials & issues Bearer JWT access token | `200 OK` |
+| `POST` | `/api/v1/transfers` | `Idempotency-Key` / `TransferRequest` | Executes bilateral account-to-account transfer | `200 OK` |
+| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` / `DepositRequest` | Injects cash deposit via System Central Vault | `200 OK` |
+| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` / `WithdrawRequest` | Withdraws cash from account (Debits Customer, Credits Vault) | `200 OK` |
+| `POST` | `/api/v1/accounts` | `CreateAccountRequest` | Opens a new bank account with TR IBAN | `201 CREATED` |
+| `GET` | `/api/v1/accounts/{accountNumber}` | `Authorization: Bearer <JWT>` | Retrieves account summary and real-time balance | `200 OK` |
+| `GET` | `/api/v1/accounts/customer/{customerId}` | `Authorization: Bearer <JWT>` | Lists all accounts owned by a customer | `200 OK` |
+| `GET` | `/api/v1/accounts/{accountNumber}/statement` | `Authorization: Bearer <JWT>` | Generates date-ranged financial statement & net cash flow | `200 OK` |
+| `POST` | `/api/v1/customers` | `CreateCustomerRequest` | Onboards a new retail customer (TCKN/Email) | `201 CREATED` |
+| `GET` | `/api/v1/customers/{id}` | `Authorization: Bearer <JWT>` | Retrieves customer profile by primary key | `200 OK` |
+| `GET` | `/api/v1/customers/identity/{identityNumber}` | `Authorization: Bearer <JWT>` | Looks up customer by national identity / tax ID | `200 OK` |
+| `GET` | `/actuator/health` | Public (`permitAll`) | Deep health check (PostgreSQL connectivity, Disk, Probes) | `200 OK` |
+| `GET` | `/actuator/health/liveness` | Public (`permitAll`) | Kubernetes Liveness Probe (Deadlock / JVM crash detection) | `200 OK` |
+| `GET` | `/actuator/health/readiness` | Public (`permitAll`) | Kubernetes Readiness Probe (Traffic routing availability) | `200 OK` |
+| `GET` | `/actuator/prometheus` | Public (`permitAll`) | Prometheus metrics scraping endpoint | `200 OK` |
+| `GET` | `/actuator/metrics` | `Authorization: Bearer <JWT>` (`ROLE_SYSTEM`) | Protected internal JVM, HikariCP, and executor telemetry | `200 OK` |
 
 ---
 

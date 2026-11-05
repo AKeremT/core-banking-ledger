@@ -170,6 +170,17 @@ Proje, katmanlı ve temiz mimari (Clean & Layered Architecture) prensiplerine g�
 ```text
 core-banking-ledger/
 ├── .mvn/                                # Maven wrapper dosyaları
+├── docker/
+│   ├── prometheus/
+│   │   └── prometheus.yml          # Prometheus scrape hedefleri ve 5sn aralık ayarı
+│   └── grafana/
+│       └── provisioning/
+│           └── datasources/
+│               └── datasource.yml  # Otomatik bağlanan Prometheus veri kaynağı
+├── docs/
+│   └── images/
+│       ├── swagger-ui.png          # İnteraktif Swagger UI ekran görüntüsü
+│       └── grafana_log.png         # 1.000 istek altındaki canlı Grafana panosu
 ├── src/
 │   ├── main/
 │   │   ├── java/com/akt/banking_v1/
@@ -186,46 +197,62 @@ core-banking-ledger/
 │   │   │   │       ├── CustomerNotFoundException.java
 │   │   │   │       └── GlobalExceptionHandler.java
 │   │   │   ├── config/
-│   │   │   │   └── DataInitializer.java # Sistem Müşterisi ve Kasa Hesabı başlangıç verisi
-│   │   │   ├── controller/              # REST API sunum katmanı
-│   │   │   │   ├── TransferController.java # Idempotent transfer & para yatırma uç noktaları
+│   │   │   │   ├── DataInitializer.java    # Sistem Kasa Hesabı ve varsayılan test kullanıcılarını tohumlama
+│   │   │   │   ├── OpenApiConfig.java      # OpenAPI 3 / Swagger arayüz ayarları
+│   │   │   │   ├── SecurityConfig.java     # Güvenlik filtresi, CORS, Session & İlk Eşleşen Kazanır kuralları
+│   │   │   │   └── SecurityProperties.java # JWT ayarları için tip güvenli @ConfigurationProperties
+│   │   │   ├── controller/                 # REST API sunum katmanı
+│   │   │   │   ├── AuthController.java     # JWT giriş ve kimlik doğrulama uç noktaları
+│   │   │   │   ├── TransferController.java # Idempotent transfer, para yatırma ve çekme uç noktaları
 │   │   │   │   ├── AccountController.java  # Hesap açılışı & ekstre uç noktaları
 │   │   │   │   └── CustomerController.java # Müşteri kayıt & sorgulama uç noktaları
-│   │   │   ├── dto/                     # Jakarta Validation korumalı Record DTO'lar
+│   │   │   ├── dto/                        # Jakarta Validation korumalı Record DTO'lar
+│   │   │   │   ├── LoginRequest.java / AuthResponse.java
 │   │   │   │   ├── TransferRequest.java / TransferResponse.java
 │   │   │   │   ├── CreateAccountRequest.java / AccountResponse.java
 │   │   │   │   ├── CreateCustomerRequest.java / CustomerResponse.java
-│   │   │   │   ├── DepositRequest.java
+│   │   │   │   ├── DepositRequest.java / WithdrawRequest.java
 │   │   │   │   ├── AccountStatementResponse.java / StatementItemResponse.java
 │   │   │   │   └── ErrorResponse.java
-│   │   │   ├── enums/                   # Tip güvenli finansal durumlar
+│   │   │   ├── enums/                      # Tip güvenli finansal durumlar ve roller
+│   │   │   │   ├── Role.java (CUSTOMER, TELLER, SYSTEM)
 │   │   │   │   ├── Currency.java (TRY, USD, EUR)
 │   │   │   │   ├── AccountStatus.java (ACTIVE, SUSPENDED, CLOSED)
 │   │   │   │   ├── AccountType.java (CHECKING, SAVINGS)
 │   │   │   │   ├── TransactionType.java (INTERNAL_TRANSFER, DEPOSIT, WITHDRAW)
 │   │   │   │   ├── TransactionStatus.java (PENDING, COMPLETED, FAILED)
 │   │   │   │   └── EntryType.java (DEBIT, CREDIT)
-│   │   │   ├── mapper/                  # İzole ve test edilebilir DTO mappers
+│   │   │   ├── mapper/                     # İzole ve test edilebilir DTO mappers
 │   │   │   │   ├── TransferMapper.java
 │   │   │   │   ├── AccountMapper.java
 │   │   │   │   └── CustomerMapper.java
-│   │   │   ├── model/                   # JPA Entity modelleri (Double-Entry domain)
+│   │   │   ├── model/                      # JPA Entity modelleri (Double-Entry & Güvenlik)
 │   │   │   │   ├── Customer.java
 │   │   │   │   ├── Account.java
 │   │   │   │   ├── Transaction.java
-│   │   │   │   └── LedgerEntry.java
-│   │   │   ├── repository/              # Spring Data JPA & Concurrency Lock Queries
+│   │   │   │   ├── LedgerEntry.java
+│   │   │   │   └── User.java               # Spring Security UserDetails sözleşmesi
+│   │   │   ├── repository/                 # Spring Data JPA & Concurrency Lock Queries
 │   │   │   │   ├── CustomerRepository.java
-│   │   │   │   ├── AccountRepository.java (findByAccountNumberWithLock)
-│   │   │   │   ├── TransactionRepository.java (findByIdempotencyKey)
-│   │   │   │   └── LedgerEntryRepository.java (findByAccountIdAndDateRange)
-│   │   │   └── service/                 # Finansal iş mantığı motorları
-│   │   │       ├── TransferService.java # Transfer, Deposit, Lock Ordering, Idempotency
-│   │   │       ├── AccountService.java  # Hesap açılışı, 26 haneli TR IBAN üretimi
-│   │   │       ├── CustomerService.java # Müşteri onboarding ve tekillik kontrolleri
-│   │   │       └── AccountStatementService.java # Stream API ile hesap ekstresi ve finansal analitik
+│   │   │   │   ├── AccountRepository.java  # findByAccountNumberWithLock (Pessimistic Write)
+│   │   │   │   ├── TransactionRepository.java # findByIdempotencyKey
+│   │   │   │   ├── LedgerEntryRepository.java # findByAccountIdAndDateRange
+│   │   │   │   └── UserRepository.java     # findByUsername, existsByUsername
+│   │   │   ├── security/                   # Pure Stateless Güvenlik Filtresi
+│   │   │   │   └── JwtAuthenticationFilter.java # Bearer JWT için OncePerRequestFilter
+│   │   │   └── service/                    # Finansal ve güvenlik iş mantığı motorları
+│   │   │       ├── TransferService.java    # Transfer, Deposit, Withdraw, Lock Ordering, Idempotency
+│   │   │       ├── AccountService.java     # Hesap açılışı, 26 haneli TR IBAN üretimi
+│   │   │       ├── CustomerService.java    # Müşteri onboarding ve tekillik kontrolleri
+│   │   │       ├── AccountStatementService.java # Stream API ile hesap ekstresi ve finansal analitik
+│   │   │       ├── AuthService.java        # Kimlik doğrulama ve token yönetim servisi
+│   │   │       ├── CustomUserDetailsService.java # DaoAuthenticationProvider için kullanıcı yükleyici
+│   │   │       └── JwtService.java         # JJWT 0.12 imzalama ve claim ayrıştırıcı
 │   │   └── resources/
-│   │       └── application.properties   # Veritabanı ve Hibernate ayarları
+│   │       ├── application.properties      # Veritabanı, JWT ve Actuator ayarları
+│   │       └── db/migration/               # Flyway otomatik fiziksel DDL migrasyonları
+│   │           ├── V1__init_schema.sql     # Temel finansal şema & check constraint'leri
+│   │           └── V2__create_users_table.sql # Kullanıcılar tablosu & rol indeksleri
 │   └── test/
 │       └── java/com/akt/banking_v1/
 │           ├── BankingV1ApplicationTests.java
@@ -234,19 +261,12 @@ core-banking-ledger/
 │           ├── integration/
 │           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Yarış Durumu Testleri
 │           └── service/
-│               └── TransferServiceTest.java # 8 Kapsamlı Mockito Birim Test Senaryosu
-├── docker/
-│   ├── prometheus/
-│   │   └── prometheus.yml          # Prometheus scrape hedefleri ve 5sn aralık ayarı
-│   └── grafana/
-│       └── provisioning/
-│           └── datasources/
-│               └── datasource.yml  # Otomatik bağlanan Prometheus veri kaynağı
-├── docker-compose.yml              # PostgreSQL 16, Prometheus & Grafana orkestrasyonu
-├── pom.xml                         # Maven bağımlılıkları ve konfigürasyonlar
-├── DATABASE_SCHEMA.md              # Veritabanı ve DDL dokümantasyonu
-├── README.md                       # İngilizce dokümantasyon
-└── README-tr.md                    # Türkçe ana dokümantasyon (bu dosya)
+│               └── TransferServiceTest.java # 9 Kapsamlı Mockito Birim Test Senaryosu
+├── docker-compose.yml                      # PostgreSQL 16, Prometheus & Grafana orkestrasyonu
+├── pom.xml                                 # Maven bağımlılıkları ve konfigürasyonlar
+├── DATABASE_SCHEMA.md                      # Veritabanı ve DDL dokümantasyonu
+├── README.md                               # İngilizce dokümantasyon
+└── README-tr.md                            # Türkçe ana dokümantasyon (bu dosya)
 ```
 
 ---
@@ -266,6 +286,9 @@ core-banking-ledger/
 * **`deposit(DepositRequest, idempotencyKey)`:**
   * Dışarıdan hesaba nakit yatırılması durumunda paranın kaynağı olarak **`DataInitializer.SYSTEM_TRY_ACCOUNT` (Kasa Hesabı)** kullanılır. Kasa borçlandırılır (`DEBIT`), müşteri hesabı alacaklandırılır (`CREDIT`).
   * Dekont referans numarası `DEP-YYYYMMDD-UUID8` formatında üretilir.
+* **`withdraw(WithdrawRequest, idempotencyKey)`:**
+  * Hesaptan nakit çekilmesinde müşteri hesabı borçlandırılır (`DEBIT`), Sistem Kasası alacaklandırılır (`CREDIT`).
+  * Deterministik kilit sıralaması (`compareTo`) ve bakiye yeterlilik denetimi (`InsufficientBalanceException`) işletilir. Dekont `WDR-YYYYMMDD-UUID8` formatında üretilir.
 
 ### 2. `AccountService` (Hesap Açılışı ve IBAN Motoru)
 * **Otomatik IBAN Üretimi:** `ThreadLocalRandom` ile Türkiye bankacılık standartlarına uygun `TR` önekli 24 haneli rakam bloğu (`TR` + 24 hane = 26 karakter) üretilir.
@@ -282,24 +305,37 @@ core-banking-ledger/
   $$\text{Net Akış} = \sum \text{CREDIT} - \sum \text{DEBIT}$$
 * **İşlem Türüne Göre Kırılım:** Hareketler `TransactionType` (`INTERNAL_TRANSFER`, `DEPOSIT`, `WITHDRAW`) bazında gruplanarak kullanıcıya raporlanır.
 
+### 5. `AuthService` ve Güvenlik Mimarisi (JWT & RBAC)
+* **Tamamen Stateless Kimlik Doğrulama:** JJWT 0.12 fluent API ile üretilen, rol talepleri içeren ve kriptografik olarak imzalanan Bearer JWT mimarisi.
+* **Deklaratif Metot Güvenliği (`@PreAuthorize`):** Controller seviyesinde rol sınırları:
+  * `ROLE_CUSTOMER`: Kendi hesap ekstresini ve bakiyesini görüntüleme.
+  * `ROLE_TELLER`: Şube para yatırma, çekme, hesap açma ve müşteriler arası transfer yetkisi.
+  * `ROLE_SYSTEM`: Kasa hesabı yönetimi ve alt seviye sistem telemetrisi (`/actuator/**`).
+
 ---
 
 ## 🌐 REST API Uç Noktaları (Endpoints)
 
 Sunum katmanı; Jakarta Bean Validation teftişli, client idempotency korumalı ve RFC-7807 standartlarında hata yanıtı üreten RESTful servislere sahiptir:
 
-| Metot | Uç Nokta (Endpoint) | Zorunlu Header | Açıklama | HTTP Kodu |
+| Metot | Uç Nokta (Endpoint) | Zorunlu Header / Gövde | Açıklama | HTTP Kodu |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/transfers` | `Idempotency-Key` | İki hesap arasında çift taraflı havale/virman | `200 OK` |
-| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` | Sistem Kasasından hesaba nakit yatırma | `200 OK` |
-| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` | Hesaptan nakit çekme (Vault alacak, Müşteri borç) | `200 OK` |
-| `POST` | `/api/v1/accounts` | - | Otomatik TR IBAN'lı yeni banka hesabı açma | `201 CREATED` |
-| `GET` | `/api/v1/accounts/{accountNumber}` | - | Hesap özeti ve anlık bakiye sorgulama | `200 OK` |
-| `GET` | `/api/v1/accounts/customer/{customerId}` | - | Müşteriye ait tüm hesapları listeleme | `200 OK` |
-| `GET` | `/api/v1/accounts/{accountNumber}/statement` | - | Tarih aralıklı hesap ekstresi ve net akış | `200 OK` |
-| `POST` | `/api/v1/customers` | - | Yeni bireysel müşteri kaydı oluşturma | `201 CREATED` |
-| `GET` | `/api/v1/customers/{id}` | - | Müşteri profil bilgilerini ID ile getirme | `200 OK` |
-| `GET` | `/api/v1/customers/identity/{identityNumber}` | - | TCKN/Vergi No ile müşteri sorgulama | `200 OK` |
+| `POST` | `/api/v1/auth/login` | `LoginRequest` (kullanıcı adı, şifre) | Kimlik doğrulaması yapar ve Bearer JWT token döner | `200 OK` |
+| `POST` | `/api/v1/transfers` | `Idempotency-Key` / `TransferRequest` | İki hesap arasında çift taraflı havale/virman | `200 OK` |
+| `POST` | `/api/v1/transfers/deposit` | `Idempotency-Key` / `DepositRequest` | Sistem Kasasından hesaba nakit yatırma | `200 OK` |
+| `POST` | `/api/v1/transfers/withdraw` | `Idempotency-Key` / `WithdrawRequest` | Hesaptan nakit çekme (Kasa alacak, Müşteri borç) | `200 OK` |
+| `POST` | `/api/v1/accounts` | `CreateAccountRequest` | Otomatik TR IBAN'lı yeni banka hesabı açma | `201 CREATED` |
+| `GET` | `/api/v1/accounts/{accountNumber}` | `Authorization: Bearer <JWT>` | Hesap özeti ve anlık bakiye sorgulama | `200 OK` |
+| `GET` | `/api/v1/accounts/customer/{customerId}` | `Authorization: Bearer <JWT>` | Müşteriye ait tüm hesapları listeleme | `200 OK` |
+| `GET` | `/api/v1/accounts/{accountNumber}/statement` | `Authorization: Bearer <JWT>` | Tarih aralıklı hesap ekstresi ve net akış | `200 OK` |
+| `POST` | `/api/v1/customers` | `CreateCustomerRequest` | Yeni bireysel müşteri kaydı oluşturma | `201 CREATED` |
+| `GET` | `/api/v1/customers/{id}` | `Authorization: Bearer <JWT>` | Müşteri profil bilgilerini ID ile getirme | `200 OK` |
+| `GET` | `/api/v1/customers/identity/{identityNumber}` | `Authorization: Bearer <JWT>` | TCKN/Vergi No ile müşteri sorgulama | `200 OK` |
+| `GET` | `/actuator/health` | Herkese Açık (`permitAll`) | Derin sistem sağlığı (PostgreSQL, Disk, K8s Probe'ları) | `200 OK` |
+| `GET` | `/actuator/health/liveness` | Herkese Açık (`permitAll`) | Kubernetes Liveness Probe (Deadlock / JVM çökme tespiti) | `200 OK` |
+| `GET` | `/actuator/health/readiness` | Herkese Açık (`permitAll`) | Kubernetes Readiness Probe (Trafik kabul hazırlığı) | `200 OK` |
+| `GET` | `/actuator/prometheus` | Herkese Açık (`permitAll`) | Prometheus metrik scrape uç noktası | `200 OK` |
+| `GET` | `/actuator/metrics` | `Authorization: Bearer <JWT>` (`ROLE_SYSTEM`) | Korumalı JVM, HikariCP ve executor telemetrisi | `200 OK` |
 
 ---
 
