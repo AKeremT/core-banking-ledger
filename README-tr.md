@@ -457,7 +457,7 @@ docker compose up -d
 - [x] **Flyway Database Migration:** Şemanın fiziksel SQL scriptleri ile versiyonlanması (`V1__init_schema.sql`, `V2__create_users_table.sql`, `ddl-auto=validate`).
 - [x] **OpenAPI 3 / Swagger Dokümantasyonu:** `springdoc-openapi` 3.2.0 ile interaktif canlı test arayüzü (`/swagger-ui.html`).
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filtre mimarisi (`OncePerRequestFilter`), metot seviyesinde güvenlik (`@EnableMethodSecurity`, `@PreAuthorize`), rol tabanlı erişim denetimi (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 kullanıcı şeması ve kimlik doğrulama (`/api/v1/auth/login`).
-- [ ] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
+- [x] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
 - [ ] **Güvenlik Entegrasyon Testleri:** `@WithMockUser` ile 401 Unauthorized, 403 Forbidden ve 200/201 yetki sınırlarının otomatik MockMvc testleri.
 
 ---

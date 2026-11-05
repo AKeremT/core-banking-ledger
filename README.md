@@ -461,7 +461,7 @@ docker compose up -d
 - [x] **Flyway Database Migration:** Automated versioned physical DDL scripts (`V1__init_schema.sql`, `V2__create_users_table.sql`, `ddl-auto=validate`).
 - [x] **OpenAPI 3 / Swagger Documentation:** Interactive API documentation via `springdoc-openapi` 3.2.0.
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filter (`OncePerRequestFilter`), method-level security (`@EnableMethodSecurity`, `@PreAuthorize`), role-based access control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 migration, and secure authentication endpoint (`/api/v1/auth/login`).
-- [ ] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
+- [x] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
 - [ ] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries.
 
 ---

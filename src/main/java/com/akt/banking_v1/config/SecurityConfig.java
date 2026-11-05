@@ -86,16 +86,21 @@ public class SecurityConfig {
                             response.getWriter().write("{\"error\" : \"forbidden\", \"message\" : \"forbidden access\"}");
                         }))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/swagger-ui/**",
-                                "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html",
+                                "/actuator/health/**",
+                                "/actuator/info",
+                                "/actuator/prometheus")
+                        .permitAll()
+                        .requestMatchers("/actuator/**").hasRole("SYSTEM")
                         .anyRequest().authenticated())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-
-
-
     }
 }
