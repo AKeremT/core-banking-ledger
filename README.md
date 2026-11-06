@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-9%20Unit%20%7C%202%20Integration%20Passing-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-20%20Passing%20(Unit%2C%20Integration%2C%20Security)-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -461,6 +461,21 @@ Multi-threaded race conditions, transaction isolation, and pessimistic locking i
 | **1** | `testDeadlockFreeCrossTransfersConcurrently` | **100 Concurrent Threads**<br/>(50 threads: Account A $\rightarrow$ B)<br/>(50 threads: Account B $\rightarrow$ A) | **Zero Deadlocks & Balance Conservation:**<br/>Lexicographical IBAN lock ordering eliminates cyclic dependency deadlocks. All 100 bilateral transfers commit without failure. Total combined balance across accounts is strictly conserved ($\sum \text{Balances} = 20,000.0000 \text{ TRY}$). | `PASSED` (0 Deadlocks) |
 | **2** | `testDoubleSpendingPreventionConcurrently` | **50 Concurrent Threads**<br/>(50 simultaneous attempts to transfer 100 TRY from an account with exactly 100 TRY balance) | **Race Condition & Overdraft Prevention:**<br/>Row-level pessimistic write locking (`SELECT ... FOR UPDATE`) guarantees only 1 thread executes. The remaining 49 threads fail fast with `InsufficientBalanceException`. Final balance is strictly `0.0000 TRY`. | `PASSED` (0 Overdrafts) |
 
+### `SecurityAccessIntegrationTest` Suite (Spring Security & MockMvc RBAC)
+
+Role-Based Access Control (RBAC), method-level `@PreAuthorize` security, and URL-based authentication rules are verified via `MockMvc` and `@WithMockUser`:
+
+| # | Security Test Scenario | Authentication / Role | Target Endpoint & Request | Expected Outcome & Invariant Verified |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | `givenNoAuthentication_whenAccessSecuredEndpoint_thenReturns401Unauthorized` | Anonymous (None) | `POST /api/v1/customers` | `401 Unauthorized` (Security filter chain blocks unauthenticated requests) |
+| **2** | `givenCustomerRole_whenCreateCustomer_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `POST /api/v1/customers` | `403 Forbidden` (`CUSTOMER` role denied; requires `TELLER`) |
+| **3** | `givenTellerRole_whenCreateCustomer_thenReturns201Created` | `@WithMockUser(roles = "TELLER")` | `POST /api/v1/customers` | `201 Created` (`TELLER` role authorized; customer onboarded) |
+| **4** | `givenNoAuthentication_whenAccessPublicHealthEndpoint_thenReturns200OK` | Anonymous (None) | `GET /actuator/health` | `200 OK` (Public actuator probe whitelist `permitAll`) |
+| **5** | `givenTellerRole_whenExecuteTransfer_thenReturns403Forbidden` | `@WithMockUser(roles = "TELLER")` | `POST /api/v1/transfers` | `403 Forbidden` (`TELLER` denied; critical transfer engine requires `SYSTEM`) |
+| **6** | `givenCustomerRole_whenDepositCash_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `POST /api/v1/transfers/deposit` | `403 Forbidden` (`CUSTOMER` denied; cash deposit requires `TELLER`) |
+| **7** | `givenCustomerRole_whenAccessMetrics_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `GET /actuator/metrics` | `403 Forbidden` (System metrics restricted from general users) |
+| **8** | `givenSystemRole_whenAccessMetrics_thenReturns200OK` | `@WithMockUser(roles = "SYSTEM")` | `GET /actuator/metrics` | `200 OK` (`SYSTEM` role authorized for telemetry scraping) |
+
 ---
 
 ## 📚 Architecture & Schema Documentation
@@ -486,12 +501,13 @@ cd core-banking-ledger
 
 ### 2. Launch Infrastructure via Docker Compose
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
-> Starts:
-> * **PostgreSQL 16:** Accessible on `localhost:5432` (`core_banking_ledger`, user/password: `akt`/`akt`).
-> * **Prometheus:** Accessible on `http://localhost:9090` (Scrapes Spring Boot every 5 seconds).
-> * **Grafana:** Accessible on `http://localhost:3000` (user/password: `admin`/`admin`, pre-configured Prometheus datasource).
+> Starts the entire banking ecosystem automatically:
+> * **Banking App (`banking-app`):** Core banking service running on port `8080` (Multi-stage Eclipse Temurin JRE 21 Alpine image, CIS non-root `appuser`).
+> * **PostgreSQL 16 (`core_banking_ledger`):** Relational database on `localhost:5432` with automated `pg_isready` healthcheck.
+> * **Prometheus (`banking_prometheus`):** Telemetry server on `http://localhost:9090` (Scrapes `banking-app:8080/actuator/prometheus` every 5 seconds).
+> * **Grafana (`banking_grafana`):** Real-time dashboard on `http://localhost:3000` (user/password: `admin`/`admin`, pre-configured Prometheus datasource).
 
 ### 3. Run the Test Suite
 ```bash
@@ -502,7 +518,7 @@ docker compose up -d
 ./mvnw clean test
 ```
 
-### 4. Start the Application
+### 4. Start the Application Locally (Optional)
 ```bash
 # Windows
 .\mvnw.cmd spring-boot:run
@@ -532,8 +548,8 @@ docker compose up -d
 - [x] **OpenAPI 3 / Swagger Documentation:** Interactive API documentation via `springdoc-openapi` 3.2.0.
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filter (`OncePerRequestFilter`), method-level security (`@EnableMethodSecurity`, `@PreAuthorize`), role-based access control (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 migration, and secure authentication endpoint (`/api/v1/auth/login`).
 - [x] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
-- [ ] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries.
-- [ ] **Production Multi-Stage Dockerfile:** Containerize the Spring Boot application using lightweight Alpine/Distroless image integrated into `docker-compose.yml`.
+- [x] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries (`SecurityAccessIntegrationTest` - 8/8 passing).
+- [x] **Production Multi-Stage Dockerfile:** Containerize the Spring Boot application using lightweight Alpine/Temurin JRE image, non-root `appuser`, layer caching, and RFC-1123 compliant `docker-compose.yml` full-stack orchestration.
 - [ ] **GitHub Actions CI/CD Pipeline:** Automated build, Testcontainers integration testing, and status badge verification on every push (`.github/workflows/ci.yml`).
 - [ ] **Hardcore Senior Fintech Mock Interview:** Comprehensive architectural defense and technical interview covering concurrency, double-entry bookkeeping, security, and observability before transitioning to the next production-ready project.
 

@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
-[![Build Status](https://img.shields.io/badge/Tests-9%20Birim%20%7C%202%20Entegrasyon%20Başarılı-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![Build Status](https://img.shields.io/badge/Tests-20%20Ba%C5%9Far%C4%B1l%C4%B1%20(Birim%2C%20Entegrasyon%2C%20G%C3%BCvenlik)-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -457,6 +457,21 @@ Gerçek PostgreSQL 16 veritabanı konteyneri üzerinde **Testcontainers**, `Exec
 | **1** | `testDeadlockFreeCrossTransfersConcurrently` | **100 Eşzamanlı Thread**<br/>(50 thread: Hesap A $\rightarrow$ B)<br/>(50 thread: Hesap B $\rightarrow$ A) | **Sıfır Deadlock ve Bakiye Korunumu:**<br/>Alfabetik IBAN kilitleme sırası döngüsel deadlock'u engeller. 100 transferin tamamı hatasız tamamlanır. Toplam para kuruşu kuruşuna korunur ($\sum \text{Bakiyeler} = 20.000,0000 \text{ TRY}$). | `BAŞARILI` (0 Deadlock) |
 | **2** | `testDoubleSpendingPreventionConcurrently` | **50 Eşzamanlı Thread**<br/>(Tam 100 TRY bakiyesi olan hesaptan aynı anda 100 TRY çekmeye çalışan 50 thread) | **Yarış Durumu & Çift Harcama Engeli:**<br/>Satır düzeyinde `SELECT ... FOR UPDATE` kilidi sayesinde sadece 1 istek geçer. Kalan 49 istek `InsufficientBalanceException` ile anında reddedilir. Son bakiye kesin olarak `0,0000 TRY` kalır. | `BAŞARILI` (0 Açık Bakiye) |
 
+### `SecurityAccessIntegrationTest` Test Paketi (Spring Security & MockMvc RBAC)
+
+Rol Tabanlı Erişim Denetimi (RBAC), metot seviyesi `@PreAuthorize` kalkanları ve URL bazlı filtre zinciri kuralları `MockMvc` ve `@WithMockUser` ile test edilmiştir:
+
+| # | Güvenlik Test Senaryosu | Kimlik / Rol | Hedef Endpoint & İstek | Beklenen Sonuç ve Doğrulanan Güvenlik Sınırı |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | `givenNoAuthentication_whenAccessSecuredEndpoint_thenReturns401Unauthorized` | Anonim (Kimliksiz) | `POST /api/v1/customers` | `401 Unauthorized` (Filtre zinciri kimliksiz istekleri anında bloklar) |
+| **2** | `givenCustomerRole_whenCreateCustomer_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `POST /api/v1/customers` | `403 Forbidden` (`CUSTOMER` rolü müşteri açamaz; `TELLER` gerekir) |
+| **3** | `givenTellerRole_whenCreateCustomer_thenReturns201Created` | `@WithMockUser(roles = "TELLER")` | `POST /api/v1/customers` | `201 Created` (`TELLER` yetkilendirilir; müşteri başarıyla kaydedilir) |
+| **4** | `givenNoAuthentication_whenAccessPublicHealthEndpoint_thenReturns200OK` | Anonim (Kimliksiz) | `GET /actuator/health` | `200 OK` (Kubernetes probe ve genel sağlık ucu `permitAll`) |
+| **5** | `givenTellerRole_whenExecuteTransfer_thenReturns403Forbidden` | `@WithMockUser(roles = "TELLER")` | `POST /api/v1/transfers` | `403 Forbidden` (`TELLER` engellenir; çekirdek transfer motoru `SYSTEM` ister) |
+| **6** | `givenCustomerRole_whenDepositCash_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `POST /api/v1/transfers/deposit` | `403 Forbidden` (`CUSTOMER` sanal para yatıramaz; gişe `TELLER` gerekir) |
+| **7** | `givenCustomerRole_whenAccessMetrics_thenReturns403Forbidden` | `@WithMockUser(roles = "CUSTOMER")` | `GET /actuator/metrics` | `403 Forbidden` (Sistem metrikleri genel kullanıcılara kapalıdır) |
+| **8** | `givenSystemRole_whenAccessMetrics_thenReturns200OK` | `@WithMockUser(roles = "SYSTEM")` | `GET /actuator/metrics` | `200 OK` (`SYSTEM` rolü telemetri ve metrik kazıma için yetkilidir) |
+
 ---
 
 ## 📚 Mimari ve Şema Dokümantasyonu
@@ -482,12 +497,13 @@ cd core-banking-ledger
 
 ### 2. Altyapıyı Docker Compose ile Ayağa Kaldırın
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
-> Aşağıdaki servisleri ayağa kaldırır:
-> * **PostgreSQL 16:** `localhost:5432` üzerinde hazır (`core_banking_ledger`, kullanıcı/şifre: `akt`/`akt`).
-> * **Prometheus:** `http://localhost:9090` üzerinde çalışır (Spring Boot'u her 5 saniyede bir scrape eder).
-> * **Grafana:** `http://localhost:3000` üzerinde açılır (kullanıcı/şifre: `admin`/`admin`, Prometheus veri kaynağı hazır bağlanmıştır).
+> Tüm bankacılık ekosistemini tek komutla ayağa kaldırır:
+> * **Bankacılık Servisi (`banking-app`):** `8080` portunda çalışan Spring Boot uygulaması (Hafif çok aşamalı Eclipse Temurin JRE 21 Alpine imajı, CIS non-root `appuser`).
+> * **PostgreSQL 16 (`core_banking_ledger`):** `localhost:5432` üzerinde `pg_isready` healthcheck ile korunan ilişkisel veritabanı.
+> * **Prometheus (`banking_prometheus`):** `http://localhost:9090` üzerinde telemetri sunucusu (`banking-app:8080/actuator/prometheus` ucunu 5 saniyede bir scrape eder).
+> * **Grafana (`banking_grafana`):** `http://localhost:3000` üzerinde açılır (kullanıcı/şifre: `admin`/`admin`, Prometheus veri kaynağı hazır bağlanmıştır).
 
 ### 3. Testleri Koşturun
 ```bash
@@ -498,7 +514,7 @@ docker compose up -d
 ./mvnw clean test
 ```
 
-### 4. Uygulamayı Başlatın
+### 4. Uygulamayı Lokal Başlatın (İsteğe Bağlı)
 ```bash
 # Windows
 .\mvnw.cmd spring-boot:run
@@ -528,8 +544,8 @@ docker compose up -d
 - [x] **OpenAPI 3 / Swagger Dokümantasyonu:** `springdoc-openapi` 3.2.0 ile interaktif canlı test arayüzü (`/swagger-ui.html`).
 - [x] **Spring Security & JWT (RBAC):** Pure stateless JWT filtre mimarisi (`OncePerRequestFilter`), metot seviyesinde güvenlik (`@EnableMethodSecurity`, `@PreAuthorize`), rol tabanlı erişim denetimi (`ROLE_CUSTOMER`, `ROLE_TELLER`, `ROLE_SYSTEM`), Flyway V2 kullanıcı şeması ve kimlik doğrulama (`/api/v1/auth/login`).
 - [x] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
-- [ ] **Güvenlik Entegrasyon Testleri:** `@WithMockUser` ile 401 Unauthorized, 403 Forbidden ve 200/201 yetki sınırlarının otomatik MockMvc testleri.
-- [ ] **Üretime Hazır Çok Aşamalı Dockerfile (Multi-Stage):** Spring Boot uygulamasının hafif Alpine/Distroless tabanlı imajla konteynerize edilip `docker-compose.yml` ağına dahil edilmesi.
+- [x] **Güvenlik Entegrasyon Testleri:** `@WithMockUser` ile 401 Unauthorized, 403 Forbidden ve 200/201 yetki sınırlarının otomatik MockMvc testleri (`SecurityAccessIntegrationTest` - 8/8 Başarılı).
+- [x] **Üretime Hazır Çok Aşamalı Dockerfile (Multi-Stage):** Spring Boot uygulamasının hafif Alpine JRE imajı, non-root `appuser` ve RFC-1123 uyumlu `docker-compose.yml` ağı ile tam bağımsız orkestrasyonu.
 - [ ] **GitHub Actions CI/CD Pipeline:** Her push işleminde otomatik derleme, Testcontainers entegrasyon testleri ve durum rozeti (badge) kontrolü (`.github/workflows/ci.yml`).
 - [ ] **Hardcore Senior Fintech Teknik Mülakatı:** Yeni sektörel projeye geçmeden önce concurrency, double-entry bookkeeping, locking, security ve observability katmanlarını kapsayan acımasız teknik savunma mülakatı.
 
