@@ -8,6 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
 [![Build Status](https://img.shields.io/badge/Tests-20%20Passing%20(Unit%2C%20Integration%2C%20Security)-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![CI Pipeline](https://img.shields.io/github/actions/workflow/status/AKeremT/core-banking-ledger/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20Pipeline)](https://github.com/AKeremT/core-banking-ledger/actions/workflows/ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -550,7 +551,7 @@ docker compose up --build -d
 - [x] **Observability & Metrics:** Spring Boot Actuator, Prometheus metrics, and Kubernetes health probes.
 - [x] **Security Integration Tests:** Controller slice tests with `@WithMockUser` verifying 401, 403, and 200/201 boundaries (`SecurityAccessIntegrationTest` - 8/8 passing).
 - [x] **Production Multi-Stage Dockerfile:** Containerize the Spring Boot application using lightweight Alpine/Temurin JRE image, non-root `appuser`, layer caching, and RFC-1123 compliant `docker-compose.yml` full-stack orchestration.
-- [ ] **GitHub Actions CI/CD Pipeline:** Automated build, Testcontainers integration testing, and status badge verification on every push (`.github/workflows/ci.yml`).
+- [x] **GitHub Actions CI/CD Pipeline:** Automated build, Testcontainers integration testing, and status badge verification on every push (`.github/workflows/ci.yml`).
 - [ ] **Hardcore Senior Fintech Mock Interview:** Comprehensive architectural defense and technical interview covering concurrency, double-entry bookkeeping, security, and observability before transitioning to the next production-ready project.
 
 ---

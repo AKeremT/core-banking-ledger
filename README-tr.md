@@ -8,6 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-JUnit5-darkblue.svg?style=for-the-badge&logo=testcontainers)](https://testcontainers.com/)
 [![Build Status](https://img.shields.io/badge/Tests-20%20Ba%C5%9Far%C4%B1l%C4%B1%20(Birim%2C%20Entegrasyon%2C%20G%C3%BCvenlik)-success.svg?style=for-the-badge&logo=junit5)](https://github.com/AKeremT/core-banking-ledger)
+[![CI Pipeline](https://img.shields.io/github/actions/workflow/status/AKeremT/core-banking-ledger/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20Pipeline)](https://github.com/AKeremT/core-banking-ledger/actions/workflows/ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Double--Entry%20Bookkeeping-blueviolet.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)
 
 ---
@@ -546,7 +547,7 @@ docker compose up --build -d
 - [x] **Gözlemlenebilirlik ve Metrikler (Observability):** Spring Boot Actuator, Prometheus metrikleri ve Kubernetes health probe'ları.
 - [x] **Güvenlik Entegrasyon Testleri:** `@WithMockUser` ile 401 Unauthorized, 403 Forbidden ve 200/201 yetki sınırlarının otomatik MockMvc testleri (`SecurityAccessIntegrationTest` - 8/8 Başarılı).
 - [x] **Üretime Hazır Çok Aşamalı Dockerfile (Multi-Stage):** Spring Boot uygulamasının hafif Alpine JRE imajı, non-root `appuser` ve RFC-1123 uyumlu `docker-compose.yml` ağı ile tam bağımsız orkestrasyonu.
-- [ ] **GitHub Actions CI/CD Pipeline:** Her push işleminde otomatik derleme, Testcontainers entegrasyon testleri ve durum rozeti (badge) kontrolü (`.github/workflows/ci.yml`).
+- [x] **GitHub Actions CI/CD Pipeline:** Her push işleminde otomatik derleme, Testcontainers entegrasyon testleri ve durum rozeti (badge) kontrolü (`.github/workflows/ci.yml`).
 - [ ] **Hardcore Senior Fintech Teknik Mülakatı:** Yeni sektörel projeye geçmeden önce concurrency, double-entry bookkeeping, locking, security ve observability katmanlarını kapsayan acımasız teknik savunma mülakatı.
 
 ---
