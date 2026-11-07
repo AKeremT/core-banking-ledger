@@ -170,7 +170,10 @@ Proje, katmanlı ve temiz mimari (Clean & Layered Architecture) prensiplerine g�
 
 ```text
 core-banking-ledger/
-├── .mvn/                                # Maven wrapper dosyaları
+├── .github/
+│   └── workflows/
+│       └── ci.yml                          # Otomatik Maven derleme & Testcontainers CI iş akışı
+├── .mvn/                                   # Maven wrapper dosyaları
 ├── docker/
 │   ├── prometheus/
 │   │   └── prometheus.yml          # Prometheus scrape hedefleri ve 5sn aralık ayarı
@@ -260,9 +263,11 @@ core-banking-ledger/
 │           ├── TestBankingV1Application.java
 │           ├── TestcontainersConfiguration.java
 │           ├── integration/
-│           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Yarış Durumu Testleri
+│           │   ├── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Yarış Durumu Testleri
+│           │   └── SecurityAccessIntegrationTest.java      # 8 Senaryolu MockMvc Güvenlik & RBAC Yetki Testleri
 │           └── service/
 │               └── TransferServiceTest.java # 9 Kapsamlı Mockito Birim Test Senaryosu
+├── Dockerfile                              # Çok aşamalı hafif prodüksiyon konteyneri (Temurin JRE 21 Alpine)
 ├── docker-compose.yml                      # PostgreSQL 16, Prometheus & Grafana orkestrasyonu
 ├── pom.xml                                 # Maven bağımlılıkları ve konfigürasyonlar
 ├── DATABASE_SCHEMA.md                      # Veritabanı ve DDL dokümantasyonu

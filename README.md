@@ -174,7 +174,10 @@ The project follows Clean & Layered Architecture standards:
 
 ```text
 core-banking-ledger/
-├── .mvn/                                # Maven wrapper configuration
+├── .github/
+│   └── workflows/
+│       └── ci.yml                          # Automated Maven build & Testcontainers CI pipeline
+├── .mvn/                                   # Maven wrapper configuration
 ├── docker/
 │   ├── prometheus/
 │   │   └── prometheus.yml          # Prometheus scrape targets & 5s interval config
@@ -264,9 +267,11 @@ core-banking-ledger/
 │           ├── TestBankingV1Application.java
 │           ├── TestcontainersConfiguration.java
 │           ├── integration/
-│           │   └── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Race Condition Tests
+│           │   ├── TransferConcurrencyIntegrationTest.java # 100-Thread Concurrency & Race Condition Tests
+│           │   └── SecurityAccessIntegrationTest.java      # 8 MockMvc Security Slice & RBAC Authorization Tests
 │           └── service/
 │               └── TransferServiceTest.java # 9 Exhaustive Mockito Unit Test Scenarios
+├── Dockerfile                              # Multi-stage production container build (Temurin JRE 21 Alpine)
 ├── docker-compose.yml                      # PostgreSQL 16, Prometheus & Grafana stack
 ├── pom.xml                                 # Maven build descriptors and plugins
 ├── DATABASE_SCHEMA.md                      # Complete database DDL & architecture specs
