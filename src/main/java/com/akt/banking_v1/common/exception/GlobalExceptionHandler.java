@@ -2,6 +2,7 @@ package com.akt.banking_v1.common.exception;
 
 import com.akt.banking_v1.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
@@ -35,7 +37,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    @ExceptionHandler({SelfTransferException.class, CurrencyMismatchException.class, MissingRequestHeaderException.class})
+    @ExceptionHandler(
+            {
+                    SelfTransferException.class,
+                    CurrencyMismatchException.class,
+                    MissingRequestHeaderException.class,
+                    ConstraintViolationException.class,
+                    HandlerMethodValidationException.class
+            })
     public ResponseEntity<ErrorResponse> handleBadRequestException(Exception ex, HttpServletRequest request) {
 
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);

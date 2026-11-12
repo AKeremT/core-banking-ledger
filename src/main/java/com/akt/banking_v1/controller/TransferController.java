@@ -11,15 +11,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/transfers")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Transfers & Cash Operations", description = "Endpoints for inter-account fund transfer, cash deposits," +
         "and cash withdrawals with idempotency and deadlock-free locking.")
 public class TransferController {
@@ -42,7 +45,7 @@ public class TransferController {
     public ResponseEntity<TransferResponse> transfer(
             @Parameter(description = "Unique client-generated idempotency key (UUID)", required = true,
                     example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody TransferRequest transferRequest) {
 
         return ResponseEntity.ok(transferService.transfer(transferRequest, idempotencyKey));
@@ -63,7 +66,7 @@ public class TransferController {
     public ResponseEntity<TransferResponse> deposit(
             @Parameter(description = "Unique client-generated idempotency key (UUID)", required = true, example =
                     "c8f12a10-23a5-4f3b-b72e-8d5932a3f789")
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody DepositRequest depositRequest) {
 
         return ResponseEntity.ok(transferService.deposit(depositRequest, idempotencyKey));
@@ -84,7 +87,7 @@ public class TransferController {
     public ResponseEntity<TransferResponse> withdraw(
             @Parameter(description = "Unique client-generated idempotency key (UUID)", required = true, example =
                     "e5b721df-6b83-4a11-a832-7c2a514d9b41")
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
             @Valid @RequestBody WithdrawRequest withdrawRequest) {
 
         return ResponseEntity.ok(transferService.withdraw(withdrawRequest, idempotencyKey));
