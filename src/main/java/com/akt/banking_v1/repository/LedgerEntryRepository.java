@@ -15,7 +15,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
 
     List<LedgerEntry> findByAccountIdOrderByCreatedAtDesc(Long accountId);
 
-    @Query("SELECT le FROM LedgerEntry le WHERE le.account.id = :accountId " +
+    @Query("SELECT le FROM LedgerEntry le JOIN FETCH le.transaction WHERE le.account.id = :accountId " +
             "AND le.createdAt BETWEEN :startDate AND :endDate ORDER BY le.createdAt DESC")
     List<LedgerEntry> findByAccountIdAndDateRange(
             @Param("accountId") Long accountId,
