@@ -31,7 +31,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    @ExceptionHandler({CustomerAlreadyExistsException.class, AccountInactiveException.class, DataIntegrityViolationException.class})
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(Exception ex, HttpServletRequest request) {
+
+        log.warn("Data integrity violation at [{}]: {}", request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "Data integrity conflict: duplicate or invalid reference", request);
+    }
+
+    @ExceptionHandler({CustomerAlreadyExistsException.class, AccountInactiveException.class})
     public ResponseEntity<ErrorResponse> handleConflictException(Exception ex, HttpServletRequest request) {
 
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
@@ -98,7 +105,8 @@ public class GlobalExceptionHandler {
     org.springframework.security.core.AuthenticationException.class})
     public ResponseEntity<ErrorResponse> handleJwtException(Exception ex, HttpServletRequest request) {
 
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid or expired token: " + ex.getMessage(), request);
+        log.warn("JWT authentication error at [{}]: {}", request.getRequestURI(), ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid or expired token", request);
     }
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)

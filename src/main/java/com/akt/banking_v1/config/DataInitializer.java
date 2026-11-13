@@ -12,6 +12,7 @@ import com.akt.banking_v1.repository.CustomerRepository;
 import com.akt.banking_v1.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,9 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
 
     public static final String SYSTEM_TRY_ACCOUNT = "TR000000000000000000000001";
+
+    @Value("${app.seed-demo-users:true}")
+    private boolean seedDemoUsers;
 
     @Override
     public void run(String... args) throws Exception {
@@ -57,7 +61,7 @@ public class DataInitializer implements CommandLineRunner {
             log.info("System vault customer and TRY cash account successfully initialized");
         }
 
-        if (!userRepository.existsByUsername("system_admin")) {
+        if (seedDemoUsers && !userRepository.existsByUsername("system_admin")) {
 
             User admin = User.builder()
                     .username("system_admin")
